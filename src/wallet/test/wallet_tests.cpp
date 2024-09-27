@@ -80,6 +80,9 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
     // Cap last block file size, and mine new block in a new block file.
     CBlockIndex* oldTip = ::ChainActive().Tip();
     GetBlockFileInfo(oldTip->GetBlockPos().nFile)->nSize = MAX_BLOCKFILE_SIZE;
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
     CBlockIndex* newTip = ::ChainActive().Tip();
 
@@ -173,6 +176,9 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         BOOST_CHECK(!result.last_scanned_height);
         BOOST_CHECK_EQUAL(wallet.GetBalance().m_mine_immature, 0);
     }
+#endif
+#endif
+#endif
 }
 
 BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
@@ -180,6 +186,9 @@ BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
     // Cap last block file size, and mine new block in a new block file.
     CBlockIndex* oldTip = ::ChainActive().Tip();
     GetBlockFileInfo(oldTip->GetBlockPos().nFile)->nSize = MAX_BLOCKFILE_SIZE;
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
     CBlockIndex* newTip = ::ChainActive().Tip();
 
@@ -234,6 +243,9 @@ BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
                               0, oldTip->GetBlockTimeMax(), TIMESTAMP_WINDOW));
         RemoveWallet(wallet, nullopt);
     }
+#endif
+#endif
+#endif
 }
 
 // Verify importwallet RPC starts rescan at earliest block with timestamp
@@ -246,6 +258,9 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
     // will pick up both blocks, not just the first.
     const int64_t BLOCK_TIME = ::ChainActive().Tip()->GetBlockTimeMax() + 5;
     SetMockTime(BLOCK_TIME);
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     m_coinbase_txns.emplace_back(CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
     m_coinbase_txns.emplace_back(CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
 
@@ -305,6 +320,9 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
             BOOST_CHECK_EQUAL(found, expected);
         }
     }
+#endif
+#endif
+#endif
 
     SetMockTime(0);
 }
@@ -494,7 +512,13 @@ class ListCoinsTestingSetup : public TestChain100Setup
 public:
     ListCoinsTestingSetup()
     {
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+#endif
+#endif
+#endif
         wallet = MakeUnique<CWallet>(m_chain.get(), "", CreateMockWalletDatabase());
         {
             LOCK2(wallet->cs_wallet, ::cs_main);
@@ -537,7 +561,13 @@ public:
             LOCK(wallet->cs_wallet);
             blocktx = CMutableTransaction(*wallet->mapWallet.at(tx->GetHash()).tx);
         }
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
         CreateAndProcessBlock({CMutableTransaction(blocktx)}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+#endif
+#endif
+#endif
 
         LOCK(wallet->cs_wallet);
         wallet->SetLastBlockProcessed(wallet->GetLastBlockHeight() + 1, ::ChainActive().Tip()->GetBlockHash());
@@ -744,11 +774,17 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
         promise.get_future().wait();
     });
     std::string error;
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     m_coinbase_txns.push_back(CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
     auto block_tx = TestSimpleSpend(*m_coinbase_txns[0], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
     m_coinbase_txns.push_back(CreateAndProcessBlock({block_tx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
     auto mempool_tx = TestSimpleSpend(*m_coinbase_txns[1], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
     BOOST_CHECK(chain->broadcastTransaction(MakeTransactionRef(mempool_tx), DEFAULT_TRANSACTION_MAXFEE, false, error));
+#endif
+#endif
+#endif
 
 
     // Reload wallet and make sure new transactions are detected despite events
@@ -758,8 +794,14 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     BOOST_CHECK_EQUAL(addtx_count, 2);
     {
         LOCK(wallet->cs_wallet);
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(mempool_tx.GetHash()), 1U);
+#endif
+#endif
+#endif
     }
 
 
@@ -782,11 +824,17 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     addtx_count = 0;
     auto handler = HandleLoadWallet([&](std::unique_ptr<interfaces::Wallet> wallet) EXCLUSIVE_LOCKS_REQUIRED(wallet->wallet()->cs_wallet) {
             BOOST_CHECK(rescan_completed);
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
             m_coinbase_txns.push_back(CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
             block_tx = TestSimpleSpend(*m_coinbase_txns[2], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
             m_coinbase_txns.push_back(CreateAndProcessBlock({block_tx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
             mempool_tx = TestSimpleSpend(*m_coinbase_txns[3], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
             BOOST_CHECK(chain->broadcastTransaction(MakeTransactionRef(mempool_tx), DEFAULT_TRANSACTION_MAXFEE, false, error));
+#endif
+#endif
+#endif
             LEAVE_CRITICAL_SECTION(wallet->wallet()->cs_wallet);
             SyncWithValidationInterfaceQueue();
             ENTER_CRITICAL_SECTION(wallet->wallet()->cs_wallet);
@@ -795,8 +843,14 @@ BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
     BOOST_CHECK_EQUAL(addtx_count, 4);
     {
         LOCK(wallet->cs_wallet);
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_tx.GetHash()), 1U);
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(mempool_tx.GetHash()), 1U);
+#endif
+#endif
+#endif
     }
 
 
@@ -812,6 +866,9 @@ BOOST_FIXTURE_TEST_CASE(ZapSelectTx, TestChain100Setup)
     AddKey(*wallet, key);
 
     std::string error;
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     m_coinbase_txns.push_back(CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey())).vtx[0]);
     auto block_tx = TestSimpleSpend(*m_coinbase_txns[0], 0, coinbaseKey, GetScriptForRawPubKey(key.GetPubKey()));
     CreateAndProcessBlock({block_tx}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
@@ -832,6 +889,9 @@ BOOST_FIXTURE_TEST_CASE(ZapSelectTx, TestChain100Setup)
         BOOST_CHECK(!wallet->HasWalletSpend(prev_hash));
         BOOST_CHECK_EQUAL(wallet->mapWallet.count(block_hash), 0u);
     }
+#endif
+#endif
+#endif
 
     TestUnloadWallet(std::move(wallet));
 }

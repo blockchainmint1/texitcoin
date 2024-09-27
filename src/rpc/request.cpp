@@ -7,10 +7,15 @@
 
 #include <fs.h>
 
+#include <algorithm>
 #include <random.h>
 #include <rpc/protocol.h>
 #include <util/system.h>
 #include <util/strencodings.h>
+#ifdef ENABLE_IPCHECK
+#include <algorithm>
+#include <vector>
+#endif
 
 /**
  * JSON-RPC protocol.  Bitcoin speaks version 1.0 for maximum compatibility,
@@ -150,8 +155,25 @@ std::vector<UniValue> JSONRPCProcessBatchReply(const UniValue& in)
     return batch;
 }
 
+#ifdef ENABLE_IPCHECK
+bool isLimitingMethod(std::string method)
+{
+    std::vector<std::string> limitMethods = {"generatetodescriptor", "generatetoaddress", "generateblock", "getnetworkhashps", "getblocktemplate", "getmininginfo", "submitblock"};
+    return std::find(limitMethods.begin(), limitMethods.end(), method) != limitMethods.end();
+}
+#endif
+
 void JSONRPCRequest::parse(const UniValue& valRequest)
 {
+    #ifdef ENABLE_IPCHECK
+    std::string callerIP;
+    std::size_t index = this->peerAddr.find(':');
+    if (index != std::string::npos) {
+        callerIP = this->peerAddr.substr(0, index);
+    } else {
+        callerIP = this->peerAddr;
+    }
+    #endif
     // Parse request
     if (!valRequest.isObject())
         throw JSONRPCError(RPC_INVALID_REQUEST, "Invalid Request object");
@@ -169,9 +191,26 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
     strMethod = valMethod.get_str();
     if (fLogIPs)
         LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s peeraddr=%s\n", SanitizeString(strMethod),
-            this->authUser, this->peerAddr);
+                 this->authUser, this->peerAddr);
     else
         LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s\n", SanitizeString(strMethod), this->authUser);
+
+    #ifdef ENABLE_IPCHECK
+    if (isLimitingMethod(strMethod)) {
+        bool allowed = false;
+        for (const std::string& ipAddr : gArgs.GetArgs("-miningallowip")) {
+            LogPrintf("Checking Allowed IP %s %d\n", ipAddr, ipAddr == callerIP);
+            if (ipAddr == callerIP) {
+                allowed = true;
+                break;
+            }
+        }
+        if (!allowed) {
+            LogPrintf("Command %s is not allowed for %s\n", strMethod, callerIP);
+            throw JSONRPCError(RPC_INVALID_REQUEST, "Method not allowed for the ip");
+        }
+    }
+    #endif
 
     // Parse params
     UniValue valParams = find_value(request, "params");

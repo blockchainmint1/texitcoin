@@ -169,8 +169,14 @@ public:
     explicit BlockAssembler(const CTxMemPool& mempool, const CChainParams& params);
     explicit BlockAssembler(const CTxMemPool& mempool, const CChainParams& params, const Options& options);
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn);
+#endif
+#endif
+#endif
 
     static Optional<int64_t> m_last_block_num_txs;
     static Optional<int64_t> m_last_block_weight;

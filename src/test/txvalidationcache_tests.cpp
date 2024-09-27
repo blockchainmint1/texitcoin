@@ -56,6 +56,9 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
 
     CBlock block;
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     // Test 1: block with both of those transactions should be rejected.
     block = CreateAndProcessBlock(spends, scriptPubKey);
     {
@@ -90,6 +93,9 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
         LOCK(cs_main);
         BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() == block.GetHash());
     }
+#endif
+#endif
+#endif
     // spends[1] should have been removed from the mempool when the
     // block with spends[0] is accepted:
     BOOST_CHECK_EQUAL(m_node.mempool->size(), 0U);
@@ -218,6 +224,9 @@ BOOST_FIXTURE_TEST_CASE(checkinputs_test, TestChain100Setup)
         ValidateCheckInputsForAllFlags(CTransaction(spend_tx), SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC, false);
     }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     // And if we produce a block with this tx, it should be valid (DERSIG not
     // enabled yet), even though there's no cache entry.
     CBlock block;
@@ -226,6 +235,9 @@ BOOST_FIXTURE_TEST_CASE(checkinputs_test, TestChain100Setup)
     LOCK(cs_main);
     BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() == block.GetHash());
     BOOST_CHECK(::ChainstateActive().CoinsTip().GetBestBlock() == block.GetHash());
+#endif
+#endif
+#endif
 
     // Test P2SH: construct a transaction that is valid without P2SH, and
     // then test validity with P2SH.

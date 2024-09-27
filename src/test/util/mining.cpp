@@ -14,6 +14,9 @@
 #include <util/check.h>
 #include <validation.h>
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 CTxIn generatetoaddress(const NodeContext& node, const std::string& address)
 {
     const auto dest = DecodeDestination(address);
@@ -51,3 +54,6 @@ std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coi
 
     return block;
 }
+#endif
+#endif
+#endif

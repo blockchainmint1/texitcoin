@@ -104,6 +104,9 @@ Optional<int64_t> BlockAssembler::m_last_block_num_txs{nullopt};
 Optional<int64_t> BlockAssembler::m_last_block_weight{nullopt};
 Optional<int64_t> BlockAssembler::m_last_block_mweb_weight{nullopt};
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
     int64_t nTimeStart = GetTimeMicros();
@@ -126,11 +129,17 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     assert(pindexPrev != nullptr);
     nHeight = pindexPrev->nHeight + 1;
 
-    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+    LogPrintf("DEBUG[%s]: Before AuxPow\n", __func__);
+    const int32_t nChainId = chainparams.GetConsensus ().nAuxpowChainId;
+    LogPrintf("DEBUG[%s]: after AuxPow\n", __func__);
+    LogPrintf("DEBUG[%s]: nChainId = %d\n", __func__, nChainId);
+    pblock->SetBaseVersion(VERSIONBITS_LAST_OLD_BLOCK_VERSION, nChainId);
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
+
+    LogPrintf("DEBUG[%s]: Before MineBlocksOnDemand AuxPow\n", __func__);
     if (chainparams.MineBlocksOnDemand())
-        pblock->nVersion = gArgs.GetArg("-blockversion", pblock->nVersion);
+        pblock->SetBaseVersion(gArgs.GetArg("-blockversion", pblock->GetBaseVersion()), nChainId);
 
     pblock->nTime = GetAdjustedTime();
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
@@ -200,6 +209,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     return std::move(pblocktemplate);
 }
+#endif
+#endif
+#endif
 
 void BlockAssembler::onlyUnconfirmed(CTxMemPool::setEntries& testSet)
 {

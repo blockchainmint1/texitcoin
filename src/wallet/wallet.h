@@ -243,7 +243,7 @@ struct COutputEntry
  * but old wallet.dat files may still contain vtxPrev vectors of CMerkleTxs.
  * These need to get deserialized for field alignment when deserializing
  * a CWalletTx, but the deserialized values are discarded.**/
-class CMerkleTx
+class OldCMerkleTx
 {
 public:
     template<typename Stream>
@@ -430,7 +430,7 @@ public:
         Init();
 
         std::vector<uint256> dummy_vector1; //!< Used to be vMerkleBranch
-        std::vector<CMerkleTx> dummy_vector2; //!< Used to be vtxPrev
+        std::vector<OldCMerkleTx> dummy_vector2; //!< Used to be vtxPrev
         bool dummy_bool; //! Used to be fSpent
         int serializedIndex;
         s >> tx >> m_confirm.hashBlock >> dummy_vector1 >> serializedIndex >> dummy_vector2 >> mapValue >> vOrderForm >> fTimeReceivedIsTxTime >> nTimeReceived >> fFromMe >> dummy_bool;

@@ -9,18 +9,18 @@
 
 BOOST_FIXTURE_TEST_SUITE(merkle_tests, TestingSetup)
 
-static uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint256>& vMerkleBranch, uint32_t nIndex) {
-    uint256 hash = leaf;
-    for (std::vector<uint256>::const_iterator it = vMerkleBranch.begin(); it != vMerkleBranch.end(); ++it) {
-        if (nIndex & 1) {
-            hash = Hash(*it, hash);
-        } else {
-            hash = Hash(hash, *it);
-        }
-        nIndex >>= 1;
-    }
-    return hash;
-}
+//static uint256 ComputeMerkleRootFromBranch(const uint256& leaf, const std::vector<uint256>& vMerkleBranch, uint32_t nIndex) {
+//    uint256 hash = leaf;
+//    for (std::vector<uint256>::const_iterator it = vMerkleBranch.begin(); it != vMerkleBranch.end(); ++it) {
+//        if (nIndex & 1) {
+//            hash = Hash(*it, hash);
+//        } else {
+//            hash = Hash(hash, *it);
+//        }
+//        nIndex >>= 1;
+//    }
+//    return hash;
+//}
 
 /* This implements a constant-space merkle root/path calculator, limited to 2^32 leaves. */
 static void MerkleComputation(const std::vector<uint256>& leaves, uint256* proot, bool* pmutated, uint32_t branchpos, std::vector<uint256>* pbranch) {
@@ -116,15 +116,15 @@ static std::vector<uint256> ComputeMerkleBranch(const std::vector<uint256>& leav
     return ret;
 }
 
-static std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t position)
-{
-    std::vector<uint256> leaves;
-    leaves.resize(block.vtx.size());
-    for (size_t s = 0; s < block.vtx.size(); s++) {
-        leaves[s] = block.vtx[s]->GetHash();
-    }
-    return ComputeMerkleBranch(leaves, position);
-}
+//static std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t position)
+//{
+//    std::vector<uint256> leaves;
+//    leaves.resize(block.vtx.size());
+//    for (size_t s = 0; s < block.vtx.size(); s++) {
+//        leaves[s] = block.vtx[s]->GetHash();
+//    }
+//    return ComputeMerkleBranch(leaves, position);
+//}
 
 // Older version of the merkle root computation code, for comparison.
 static uint256 BlockBuildMerkleTree(const CBlock& block, bool* fMutated, std::vector<uint256>& vMerkleTree)

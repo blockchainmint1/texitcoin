@@ -12,6 +12,13 @@
 #include <blockfilter.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#ifdef ENABLE_WINDOW_WALLET
+#include <crypto/aes.h>
+#endif
+#ifdef ENABLE_TEXIT_NODE_LOGGING
+#include <ctime>
+#include <fstream>
+#endif
 #include <hash.h>
 #include <index/blockfilterindex.h>
 #include <merkleblock.h>
@@ -554,6 +561,30 @@ EVP_PKEY* loadPublicKey(const std::string& keyPath) {
     return key;
 }
 
+#ifdef ENABLE_WINDOW_WALLET
+EVP_PKEY* generateEVP_PKEY(const std::string& pubkey_str) {
+    // Create a BIO to read the public key string
+    BIO* bio = BIO_new_mem_buf(const_cast<char*>(pubkey_str.c_str()), -1);
+    if (!bio) {
+        std::cerr << "Error creating BIO" << std::endl;
+        return nullptr;
+    }
+
+    // Read the public key from the BIO
+    EVP_PKEY* pubkey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
+    if (!pubkey) {
+        std::cerr << "Error reading public key: " << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+        BIO_free(bio);
+        return nullptr;
+    }
+
+    // Free the BIO
+    BIO_free(bio);
+
+    return pubkey;
+}
+#endif
+
 std::string extractPublicKeyAsString(EVP_PKEY* pkey) {
     BIO* bio = BIO_new(BIO_s_mem());
     if (!bio) {
@@ -612,6 +643,18 @@ bool verifyNodeKeyWithTexitKey(EVP_PKEY* texitKey, const std::string& authKeyStr
     return true;
 }
 
+#ifdef ENABLE_WINDOW_WALLET
+std::string HexArrayToString(const std::vector<unsigned char>& input) {
+    std::ostringstream hexStream;
+
+    for (unsigned char c : input) {
+        hexStream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+    }
+
+    return hexStream.str();
+}
+#endif
+
 static void PushNodeVersion(CNode& pnode, CConnman& connman, int64_t nTime)
 {
     // Note that pnode->GetLocalServices() is a reflection of the local
@@ -628,6 +671,37 @@ static void PushNodeVersion(CNode& pnode, CConnman& connman, int64_t nTime)
                            CAddress(CService(), addr.nServices);
     CAddress addrMe = CAddress(CService(), nLocalNodeServices);
 
+#ifdef ENABLE_WINDOW_WALLET
+    const std::string encryptedAuthkey = "6f1a2c7428791fab7a43744c8ba52662d65a891d7131c5d2563cfda513e9af0add789ecd626da33999a277f51a2a7dc38e937d7714e0118f8832eb9bfbf065d26434bf01531e1b949771949b6415243bfbb05d58bfe108a179d39518255c92e6bbda8e644542456d4bf3c08c8b83fd97bcfa9f1ab9574c6e0633eb3552bdbfdd49e7d544271b764baddda34fc7b3f704f098273eea3bdc97491b8dd881cc667cbed1b9154a1b9d286dd7ced0e0851ef674255235dcb735907089d860601d42befd9f65dc4f1b96524721349dac38b1ad8f52503741871fb563d350a606550033152698f42ce4fda2cdd675edeb0c886aed49877c9be93835fd7cc803df3cccb4d864744f318ea9a861765626edfd248ba8b62b15ad562b4f452d1f67b06a924b73478df8841705d2efb881f0d75a119cb8c839b4d50e84176970522a3a2350e939f5186cf4b9272bb82ce25db6f41f8a8b2dd52a2b301e78f4fc5b3d6e504b862f8634c9c0dd1d939df4fc57b3d155cdfb6402dd2b217a28797c6af0d78654f41dbbb65ecdef7987ad3c4428aba23787599ffdea85a18d6ce208025343cc714064d93028c9e2c793efbd5db57b677d2d1fc408d17fb543fda8aca5cb644b79041f7fd8237fa18234d7cf9fbf3e30a22a39e935fc0fd930fa94698fa074214e424b2d9238ce446acdfcc1078567a8f5f2e5887fb54464740b96b6cedb1a1df3ca465c6088a261b9f33dd165422abef3328ee4ebc30fb1ab28b508509974c91b7655f7c2bf51c47042a4f836a545ccbb3f2fe8af814df2c62c1a95fa173dad906de362c12810d2bfe05dbee4e82bf8686b57d0ba023e431aadd3149b5e5b585141b4d92a3961aa6030f5750e808dce8af1abfc8a5a083f8ea90b0824a7fd426b8fd39833dcd9706596174fd84b251dd0f4709c077454a37a8311517903bc26db8bbe993522cb09d1c87872a8edce8c00dcba613967bdfd33d03facff4716b24b5da5497c3281a8707f12b073209c7b4a5e0c10b580d82cdc4956b5c07a401ceb60eb9c00e0c94567d2170ab10b565f6fc1ed47c06bac14784ed3d3e004fc5443e6eba5c59137115aab67657cca2ca450f70ace466a99c3e907383a31d4e535d06095d08643b4531729b995c12fda75016ae5dd158a63996f5a231bbfefe0a1ba3e1c01f0cddc7c1530f1953f4f44bab124d01744cf88d1bd30ead1c30d9d26962e64e0c110db9b16cb3be2de6a209474245120a46a21914563abb1b7474f97de58b368b409b5dcd4d9aed5387fd41bbe74d3513d88862b321fbe59073d0fe96777736acf36a808a685115acbfb563130f224322c302188c4ed9489aa699cab075cdd51d400b75c4ad2cd29cd26c842bac3c4953c462f01dcabaa8c068eaf69c07574701e40f77fcdc07becce7d13cb39bef419f374cddcaae52cbc5bdd8a2612a4afe11e9efafbaf6b4c1c29a65f6bac8a415434125c63d849611ca043936fae47eb5ea8a9a4f5ab3e945fdc8da6f83cdac64caf39e716bb5ebf3461abd37a407ad86c0450559ed549db16ffc230bfb0ae51ca803b9d8d4f57472878652966bb3b5d92950c85867554686d3c6d2387a1cae22975ecdef7046327ca959db0d14e841dfe202c43fee22d6ae3ecbaa7ba4336d3bc6fab5b70a85999c0bfae2417f58a59362a9a5b3f9e48009b6f63212245ef69675ddc53f5a3ad99e80d46ad8d97d2af86dfee52c7dcd4037a7e0d3c545b39db363a7e65f332b83f812bed19ee66435b7062fb724fee66a9279be76dddb66b3e1f9373091fd485398b1e71d2adff9dc0e35631d23ae18e19f44ab847d5af42094761c95084c55e5ada115ca052b0f54d1419c7d0585d6b3d5e80f9a478ff6f967944f863fee85c6ab32d280cd89413eda1a3f9130a4b3ce6435b483e99ec3a";
+    const std::string aesKey = "a3f1b4c7d2e9f8a5b1c6d7e8f9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0";
+    std::string decryptedHexStr = "";
+
+    for (int i = 0 ; i < encryptedAuthkey.size(); i+=32) {
+        std::vector<unsigned char> key = ParseHex(aesKey);
+        std::string encryptedHex = encryptedAuthkey.substr(i, 32);
+        AES256Decrypt dec(key.data());
+        std::vector<unsigned char> buf = ParseHex(encryptedHex);
+        std::vector<unsigned char> decryptedHex;
+        decryptedHex.resize(AES_BLOCKSIZE);
+        dec.Decrypt(decryptedHex.data(), buf.data());
+        while (decryptedHex[decryptedHex.size() - 1] == 0) {
+          decryptedHex.pop_back();
+        }
+        decryptedHexStr.append(HexArrayToString(decryptedHex));
+    }
+    
+    std::cout << "Decrypted Hex Str: " << decryptedHexStr << std::endl;
+
+    std::vector<unsigned char> decryptedHex = ParseHex(decryptedHexStr);
+    std::string decryptedAuthKey(decryptedHex.begin(), decryptedHex.end());
+
+    std::cout << "Decrypted Plain Text: " << decryptedAuthKey << std::endl;
+
+    int authKeyLength = decryptedAuthKey.size();
+
+    connman.PushMessage(&pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
+            nonce, strSubVersion, nNodeStartingHeight, ::g_relay_txes && pnode.m_tx_relay != nullptr, authKeyLength, decryptedAuthKey));
+#else
     // Load and verify the node auth key
     const std::string authKeyPath = gArgs.GetArg("-authkey", "");
     if (authKeyPath.empty()) {
@@ -653,6 +727,7 @@ static void PushNodeVersion(CNode& pnode, CConnman& connman, int64_t nTime)
 
     connman.PushMessage(&pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
             nonce, strSubVersion, nNodeStartingHeight, ::g_relay_txes && pnode.m_tx_relay != nullptr, authKeyLength, authKeyStr));
+#endif
 
     if (fLogIPs) {
         LogPrint(BCLog::NET, "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), addrYou.ToString(), nodeid);
@@ -1739,7 +1814,7 @@ void static ProcessGetBlockData(CNode& pfrom, const CChainParams& chainparams, c
         } else {
             // Send block from disk
             std::shared_ptr<CBlock> pblockRead = std::make_shared<CBlock>();
-            if (!ReadBlockFromDisk(*pblockRead, pindex, consensusParams))
+            if (!ReadBlockFromDisk(*pblockRead, pindex, consensusParams, false))
                 assert(!"cannot load block from disk");
             pblock = pblockRead;
         }
@@ -2533,7 +2608,21 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
             }
             vRecv >> authKeyStr;
 
-            // Read the texitkey configuration option
+#ifdef ENABLE_WINDOW_WALLET
+            std::string pubkey_str = "-----BEGIN PUBLIC KEY-----\n"
+                "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4uO4+LamV0dm0GmqDZSp\n"
+                "BNnq8WFesEyvLTae4g7JW7hm4dSb7nK1iDklT6V5ENhYYczf88RXPPKAV66pKcFq\n"
+                "r3f9PczIronz+j46F0AeUxbBevROJO4GsmgTy4nYQFvHbaAj+bcSZChKFx1z0DRg\n"
+                "2YVanE7JvpI5+jQS/KLFvJSohUHTkIQqqeumejNu21jfQ8fVDwXiOIhNAIZB//wJ\n"
+                "qapGAyCRUmrWzbtFUiiQuPb0tbBp/RWrM8aXIhgImpeXwMSdLIaNzyK6CPCFD3pB\n"
+                "KqiN8UpahgGrY0Xc4JwXwqVUdJi0NBMCMeSTLZOCcNCX/eOfd/LMncKUUQk9ev0r\n"
+                "2wIDAQAB\n"
+                "-----END PUBLIC KEY-----\n";
+
+            // Load the root public key
+            texitKey = generateEVP_PKEY(pubkey_str);
+#else
+                        // Read the texitkey configuration option
             texitKeyPath = gArgs.GetArg("-texitkey", "");
             if (texitKeyPath.empty()) {
                 LogPrintf("texitkey not specified in configuration file\n");
@@ -2544,6 +2633,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
 
             // Load the root public key
             texitKey = loadPublicKey(texitKeyPath);
+#endif
             if (!texitKey) {
                 LogPrintf("Failed to load root public key from file\n");
                 pfrom.fDisconnect = true;
@@ -2555,6 +2645,44 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
             LogPrintf("Verification Result in ProcessMessage for VERSION:%d\nEnd\n", verified);
             if (verified) {
                 LogPrintf("Node auth key is verified and was signed by the root node key.\n");
+#ifdef ENABLE_TEXIT_NODE_LOGGING
+                std::string texitCert = "-----BEGIN CERTIFICATE-----\nMIIEAjCCAuqgAwIBAgIUbeRbUmxD04YzneZVZnEtqSWe6/kwDQYJKoZIhvcNAQEL\nBQAwgYwxCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVUZXhhczERMA8GA1UEBwwITWNL\naW5uZXkxEjAQBgNVBAoMCVRFWElUY29pbjEMMAoGA1UECwwDVFhDMRQwEgYDVQQD\nDAtSb2JlcnQgR3JheTEiMCAGCSqGSIb3DQEJARYTYm9iYnlAdGV4aXRjb2luLm9y\nZzAeFw0yNDA2MDUxNTQ5MjhaFw0yNTA2MDUxNTQ5MjhaMIGMMQswCQYDVQQGEwJV\nUzEOMAwGA1UECAwFVGV4YXMxETAPBgNVBAcMCE1jS2lubmV5MRIwEAYDVQQKDAlU\nRVhJVGNvaW4xDDAKBgNVBAsMA1RYQzEUMBIGA1UEAwwLUm9iZXJ0IEdyYXkxIjAg\nBgkqhkiG9w0BCQEWE2JvYmJ5QHRleGl0Y29pbi5vcmcwggEiMA0GCSqGSIb3DQEB\nAQUAA4IBDwAwggEKAoIBAQCOLyHiedzfVzdt0JeWPf22XLgKhS5HnGMJ7PXbigVw\nL9DlwTFRe4d3sc87E+0HpquzBD4xJtUQQkt7XHsZIsJE17xwyzrqYH5mv/UOwJMe\n6PF4mVRvYmK4ZqBW/8dcM6KtDkfHRxmaNEgf1H/3UHYcgg5hk4j5UuMfXvSTtQsx\nI03S+resXchr1cCmdWCiW1QV0EehSLY1UAFfT1gE+abo9HWxDn5auMVOTzRqYgvg\nt0TOe4E2h794DpFBtnK4Avk+x0n/37f1rntcEX1LeR7ItxP//T4dtyKTRjDGu3eD\nz3gQIzkzcqMCR8xsedB5Ka2x0XEwXdBikH7KwMfUdcr/AgMBAAGjWjBYMAkGA1Ud\nEwQCMAAwCwYDVR0PBAQDAgXgMB0GA1UdDgQWBBRI09K+K5IZgSEFa+joJMiQFY+I\nADAfBgNVHSMEGDAWgBRriV3taTJleZ24rfM3+BL3yHvdxDANBgkqhkiG9w0BAQsF\nAAOCAQEARMhgAlbv42GSmdJ7SQr4qR7TMnYV93Txds24lgkHy6swY9bwVTaU6lLL\nXFpy6crYD5Aj7Z/NKUkfJAauL9/yCIig5medlD+PApx/FCTsV4I8/zzW9sHgR1Zv\nleodSiQP+E1hItdhgmIJO/hr2BX9mCTPHv3N9RMv/bq2AMs/vLD13JorhGAqiCZT\n+y2hEmplLL3SDiEV+Ar/Ffl0Rf40sI/gQ1VfV0l8MtFhGY5ss4bCcw0wq4DAdyJh\n0OhYFmGy91YdL3K6DRLe1Hq7VR1lmT+s5aJHLPXnb5m/sEpIDe9GBZvoIuD+OC1x\nreNXut3x2EVmCzyQXqxMy/MOZ0FyTA==\n-----END CERTIFICATE-----\n";
+                std::string dexCert = "-----BEGIN CERTIFICATE-----\nMIIDwjCCAqqgAwIBAgIUYFgbziic5S/6R4dFpRAQoMMeIhQwDQYJKoZIhvcNAQEL\nBQAwgYwxCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVUZXhhczERMA8GA1UEBwwITWNL\naW5uZXkxEjAQBgNVBAoMCVRFWElUY29pbjEMMAoGA1UECwwDVFhDMRQwEgYDVQQD\nDAtSb2JlcnQgR3JheTEiMCAGCSqGSIb3DQEJARYTYm9iYnlAdGV4aXRjb2luLm9y\nZzAeFw0yNDA2MDYyMDI1MjJaFw0yNTA2MDYyMDI1MjJaME0xCzAJBgNVBAYTAkJa\nMQ8wDQYDVQQIDAZCZWxpemUxETAPBgNVBAoMCERFWFRyYWRlMQwwCgYDVQQLDANE\nRVgxDDAKBgNVBAMMA0RFWDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB\nALjx/bFLNqaCuIlXoSLbdcLqQIqPA26BOq9LzMG0VG8jfkGF4yDUckUOc0cTBp0a\np3z7PbXXFUrNDZgGaKRhZAddE6rWB28CG7OU+297PikEYoksSI4MBE4gkYYJJR2p\nxVZD2Y6vAb36fjSM0fDscr+m+fqytITTSXKDH4/PXsNKGtvV5MDuvgQx+crTXXzP\np//ewG9+pJ3bRsGsOS7ophbo2xnSoX6jvw5lX+pBHBYHzBvoxXg7isWlKSKFX82I\nguraPIdEg5gryKDOTen+zc6kH4tjZ/IN3rJ65FqsNm+3gUZnUQKCt9R+Eeio0RJ+\nVTcUfSbK7NRR/++R/Mpub8cCAwEAAaNaMFgwCQYDVR0TBAIwADALBgNVHQ8EBAMC\nBeAwHQYDVR0OBBYEFNXkYvD1lwOnlHBLkCu3XRh6qK0fMB8GA1UdIwQYMBaAFGuJ\nXe1pMmV5nbit8zf4EvfIe93EMA0GCSqGSIb3DQEBCwUAA4IBAQDQB6/kjNf/ZvES\n7wZAfpDDvOiN+aUhFnEIJ5mYG+1MkP5P0zKuDCBqkKDacOPKOsNY3gyxB793syQs\nagAaOnHFE3BzNXFazWKQC7WHpFqrT+dGGEm837C+crmdsABg1W1mPFtrO45gMZOw\niy9vjDBr2MN0tT0Yi4qrAyh4gof5CjuKTby38CV58Dz8KQLy8qL2LJTOMifQiPyW\nMuD6bVTe7hi6p32nD8wIgp1YgQaFarm+UHw6Anzec4m2Wt4VSfUgg9S0TZwtpFdY\nN+N4hGVKwkdkkJf0LTfwVGg5cg2HPPmzsJ1HriqHT7jRHkaRpOJdZ9TCIcBkD8ZI\nc130+k3s\n-----END CERTIFICATE-----\n";
+                std::string windowCert = "-----BEGIN CERTIFICATE-----\nMIIDujCCAqKgAwIBAgIUTvaadb8TcLs8PAaTuPvGBI4U4zwwDQYJKoZIhvcNAQEL\nBQAwgYwxCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVUZXhhczERMA8GA1UEBwwITWNL\naW5uZXkxEjAQBgNVBAoMCVRFWElUY29pbjEMMAoGA1UECwwDVFhDMRQwEgYDVQQD\nDAtSb2JlcnQgR3JheTEiMCAGCSqGSIb3DQEJARYTYm9iYnlAdGV4aXRjb2luLm9y\nZzAeFw0yNDA2MTIwOTI2MzNaFw0yNTA2MTIwOTI2MzNaMEUxCzAJBgNVBAYTAkFV\nMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRz\nIFB0eSBMdGQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCs854b8mj+\nvBkCs2fZc1pPgHFgxrwFKSiXVzjY74dPlnrUIqODhH/TcMMZSIVjEJRkNuhhAkNw\nEUUnbqJtWOXiEcntn27SdG25UV7M02LHlJskrcmvc7uTX5EPwesMYsXrvDj/u4eC\n3UwJlM4WAywkZ5FH465x88W+uulku3zKQkELvFxIATO3fLcV7lDBqeP0kYLKU/V9\nwdULu0x5+5yoO0r6utVBXIRy9RE99rdbHvAuNjJVfEDxuUkqELNvW4UBVHJeCMLP\nAYHchQvy45yqO1jcKw5AtUpWziu54IvpMp9ATOG1ldnffyeJEIUwcWAp1xvuvRMn\nvaTWmCSxQri1AgMBAAGjWjBYMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgXgMB0GA1Ud\nDgQWBBSDA9rbdTdHlzxVwwwqBpiKowO7NDAfBgNVHSMEGDAWgBRriV3taTJleZ24\nrfM3+BL3yHvdxDANBgkqhkiG9w0BAQsFAAOCAQEAPjCP2SMcQ1Jm1BtRLvwrQYb0\neHhIYuVUQGNdmJEBqFztglvZ4EPZcEBJxa8nVTEOFHIWFi4AcYn+8HCVh8ZvIgp9\ntaUX35W3A5kRPQezRJ2hTYdwN8y6HXUsxRhYrXrGss8HbT3vuU16H5iq9XHKL7bY\nrHfYXev1Amm66ZMQrHVYOKl5r76gytGJWEMxzklQ/qXqIYOw+hYBYbTJTgf4OQjq\nFIMnFh2cYNXSJbd4Lbk7RZRUgDFZHZwtpDivzBs9uakRJNny8iezoq5WfbKTbMeu\nnDMkPrbNBPqETdqJQtJLXUwmxYd4qHrykzXv+r12gLktckF8wkA32dAFfCDVEw==\n-----END CERTIFICATE-----\n";
+                std::string tapbitCert = "-----BEGIN CERTIFICATE-----\nMIIDujCCAqKgAwIBAgIUfkM1AEPVOVNLMjAWM2LcP8dBD3wwDQYJKoZIhvcNAQEL\nBQAwgYwxCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVUZXhhczERMA8GA1UEBwwITWNL\naW5uZXkxEjAQBgNVBAoMCVRFWElUY29pbjEMMAoGA1UECwwDVFhDMRQwEgYDVQQD\nDAtSb2JlcnQgR3JheTEiMCAGCSqGSIb3DQEJARYTYm9iYnlAdGV4aXRjb2luLm9y\nZzAeFw0yNDA5MjUwODExMDFaFw0yNTA5MjUwODExMDFaMEUxCzAJBgNVBAYTAkFV\nMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRz\nIFB0eSBMdGQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDeaGlf/gUn\n6eCzCAiHu/ew0N7VOaFHdM+ZsVgap1d0AEZhx/SubhuTp9PiYUI5PBaZ2ZjmGBZK\njdah9dtLbxI6ltttqexPfLAfVKgQTUit+z45nFQFWSp/4AbvH955W+hpN+TSgcrq\nshMaJUTbET5RovyMwzWIs+IOyZQW/IwbJq0InB6FUbrCW1oXFhOmwVXC+WfBwNAi\nI7lpyateQbB8q68hCNNyfqV2Bjacq6ZLyDY9lUscwQKTnvjOvVnHkGaiB06b14IU\nJlqwhEJEEsZa/JQ42d5S46BYMCPscHMJGPUrZIHtditjMfLGjmYf5o3rLQ2FSGKj\nrWVkeHT0g33XAgMBAAGjWjBYMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgXgMB0GA1Ud\nDgQWBBQAnliH14ffaj9PM4JuKoj7gme0WjAfBgNVHSMEGDAWgBRriV3taTJleZ24\nrfM3+BL3yHvdxDANBgkqhkiG9w0BAQsFAAOCAQEAEDnpS+0oDXcjaueAZ++AMNsF\n8NLit7HAhRi/NYyGVoLkKdLkSTxhcib/6cnGFB4DJY7P27RHiF+YC0SWmqUu9Y+d\nI6bRrlMiEsyz9Dw38IfwO7/B0fEi7iTaxQl9pomdfkPqnEUvyPLR43AYZ/CApLjL\nj4GrWuUsB/O3RAQJ7JWBhLONJH8oTBslRv0KSkXj54OmkHnNIbJMIsxXiakWNU68\nmJsMozkxVeZpo48QMq+Wvva49M72U5qq9muoxun5Y89MGqgHJBBtLr9dzr/oOPTF\nYYjswsd3QTOC/QG1lg7SjhEOGRAdq1/an8xCkR2GllE+oplBaR0zSS+Zh057XQ==\n-----END CERTIFICATE-----\n";
+                std::string curNode;
+                if (authKeyStr == texitCert) {
+                    curNode = "TEXIT";
+                } else if (authKeyStr == dexCert) {
+                    curNode = "DEX";
+                } else if (authKeyStr == windowCert) {
+                    curNode = "Window";
+                } else if (authKeyStr == tapbitCert) {
+                    curNode = "Tapbit";
+                }
+                if (!curNode.empty()) {
+                    std::time_t now = std::time(nullptr);
+                    std::tm *utc_tm = std::gmtime(&now);
+
+                    char ts[30];
+                    std::strftime(ts, sizeof(ts), "%Y:%m:%d:%H:%M:%S UTC", utc_tm);
+
+                    std::string timestamp = ts;
+
+                    std::string ipAddr = pfrom.addr.ToStringIP();
+                    LogPrintf("New Peer Connection:%s %s %s\n", timestamp, curNode, pfrom.addr.ToStringIP());
+
+                    fs::path peerLogPath = GetDataDir() / "peerlogs.log";
+
+                    fsbridge::ofstream logFile(peerLogPath, std::ios_base::app);
+                    if (logFile.is_open()) {
+                        logFile << timestamp << " " << curNode << " " << ipAddr << std::endl;
+                        logFile.close();
+                    } else {
+                        std::cerr << "Unable to open log file" << std::endl;
+                    }
+                }
+#endif
             } else {
                 LogPrintf("Failed to verify the node auth key.\n");
                 pfrom.fDisconnect = true;
@@ -3121,7 +3249,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
 
             if (pindex->nHeight >= ::ChainActive().Height() - MAX_BLOCKTXN_DEPTH) {
                 CBlock block;
-                bool ret = ReadBlockFromDisk(block, pindex, m_chainparams.GetConsensus());
+                bool ret = ReadBlockFromDisk(block, pindex, m_chainparams.GetConsensus(), false);
                 assert(ret);
 
                 SendBlockTransactions(pfrom, block, req);
@@ -3192,7 +3320,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
         LogPrint(BCLog::NET, "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.IsNull() ? "end" : hashStop.ToString(), pfrom.GetId());
         for (; pindex; pindex = ::ChainActive().Next(pindex))
         {
-            vHeaders.push_back(pindex->GetBlockHeader());
+            vHeaders.push_back(pindex->GetBlockHeader(m_chainparams.GetConsensus(), false));
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
         }
@@ -4502,14 +4630,14 @@ bool PeerManager::SendMessages(CNode* pto)
                     pBestIndex = pindex;
                     if (fFoundStartingHeader) {
                         // add this to the headers message
-                        vHeaders.push_back(pindex->GetBlockHeader());
+                        vHeaders.push_back(pindex->GetBlockHeader(consensusParams, false));
                     } else if (PeerHasHeader(&state, pindex)) {
                         continue; // keep looking for the first new block
                     } else if (pindex->pprev == nullptr || PeerHasHeader(&state, pindex->pprev)) {
                         // Peer doesn't have this header but they do have the prior one.
                         // Start sending headers.
                         fFoundStartingHeader = true;
-                        vHeaders.push_back(pindex->GetBlockHeader());
+                        vHeaders.push_back(pindex->GetBlockHeader(consensusParams, false));
                     } else {
                         // Peer doesn't have this header or the prior one -- nothing will
                         // connect, so bail out.
@@ -4543,7 +4671,7 @@ bool PeerManager::SendMessages(CNode* pto)
                     }
                     if (!fGotBlockFromCache) {
                         CBlock block;
-                        bool ret = ReadBlockFromDisk(block, pBestIndex, consensusParams);
+                        bool ret = ReadBlockFromDisk(block, pBestIndex, consensusParams, false);
                         assert(ret);
                         CBlockHeaderAndShortTxIDs cmpctblock(block, state.fWantsCmpctWitness);
                         m_connman.PushMessage(pto, msgMaker.Make(nSendFlags, NetMsgType::CMPCTBLOCK, cmpctblock));

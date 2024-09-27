@@ -19,7 +19,13 @@
 BOOST_AUTO_TEST_SUITE(blockfilter_index_tests)
 
 struct BuildChainTestingSetup : public TestChain100Setup {
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     CBlock CreateBlock(const CBlockIndex* prev, const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey);
+#endif
+#endif
+#endif
     bool BuildChain(const CBlockIndex* pindex, const CScript& coinbase_script_pub_key, size_t length, std::vector<std::shared_ptr<CBlock>>& chain);
 };
 
@@ -57,6 +63,9 @@ static bool CheckFilterLookups(BlockFilterIndex& filter_index, const CBlockIndex
     return true;
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
     const std::vector<CMutableTransaction>& txns,
     const CScript& scriptPubKey)
@@ -80,6 +89,9 @@ CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
 
     return block;
 }
+#endif
+#endif
+#endif
 
 bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
     const CScript& coinbase_script_pub_key,
@@ -89,6 +101,9 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
     std::vector<CMutableTransaction> no_txns;
 
     chain.resize(length);
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     for (auto& block : chain) {
         block = std::make_shared<CBlock>(CreateBlock(pindex, no_txns, coinbase_script_pub_key));
         CBlockHeader header = block->GetBlockHeader();
@@ -98,6 +113,9 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
             return false;
         }
     }
+#endif
+#endif
+#endif
 
     return true;
 }

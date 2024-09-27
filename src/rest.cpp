@@ -188,11 +188,13 @@ static bool rest_headers(const util::Ref& context,
         }
     }
 
+    const CChainParams& chainparams = Params();
+    
     switch (rf) {
     case RetFormat::BINARY: {
         CDataStream ssHeader(SER_NETWORK, PROTOCOL_VERSION);
         for (const CBlockIndex *pindex : headers) {
-            ssHeader << pindex->GetBlockHeader();
+            ssHeader << pindex->GetBlockHeader(chainparams.GetConsensus());
         }
 
         std::string binaryHeader = ssHeader.str();
@@ -204,7 +206,7 @@ static bool rest_headers(const util::Ref& context,
     case RetFormat::HEX: {
         CDataStream ssHeader(SER_NETWORK, PROTOCOL_VERSION);
         for (const CBlockIndex *pindex : headers) {
-            ssHeader << pindex->GetBlockHeader();
+            ssHeader << pindex->GetBlockHeader(chainparams.GetConsensus());
         }
 
         std::string strHex = HexStr(ssHeader) + "\n";

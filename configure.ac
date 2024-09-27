@@ -1,8 +1,8 @@
 AC_PREREQ([2.69])
 define(_CLIENT_VERSION_MAJOR, 0)
-define(_CLIENT_VERSION_MINOR, 21)
-define(_CLIENT_VERSION_REVISION, 2)
-define(_CLIENT_VERSION_BUILD, 2)
+define(_CLIENT_VERSION_MINOR, 22)
+define(_CLIENT_VERSION_REVISION, 0)
+define(_CLIENT_VERSION_BUILD, 0)
 define(_CLIENT_VERSION_RC, 0)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2024)
@@ -315,6 +315,38 @@ AC_ARG_ENABLE([werror],
                     [Treat certain compiler warnings as errors (default is no)])],
     [enable_werror=$enableval],
     [enable_werror=no])
+
+dnl Pick feature to build
+AC_ARG_ENABLE([feature],
+              [AS_HELP_STRING([--enable-feature=VALUE], [Enable a feature with the specified value])],
+              [feature_value=$enableval], [feature_value="none"])
+
+case "$feature_value" in
+  "block-all-mining")
+    AC_DEFINE([ENABLE_BLOCK_ALL_MINING], [1], [Enable Block All Mining Feature])
+    ;;
+  "window-wallet")
+    AC_DEFINE([ENABLE_WINDOW_WALLET], [1], [Enable Window Wallet Feature])
+    ;;
+  "texit-node-logging")
+    AC_DEFINE([ENABLE_TEXIT_NODE_LOGGING], [1], [Enable Texit Node Logging Feature])
+    ;;
+  "ipcheck")
+    AC_DEFINE([ENABLE_IPCHECK], [1], [Enable IP Check Feature])
+    ;;
+  "none")
+    # No feature is enabled
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid value for --enable-feature. Allowed values are "node-authorization", "block-all-mining", "window-wallet", "texit-node-logging", "ipcheck", or omit the option for default behavior.])
+    ;;
+esac
+
+AC_DEFINE_UNQUOTED([FEATURE_VALUE], ["$feature_value"], [Feature value])
+
+AC_SUBST([FEATURE_VALUE], ["$feature_value"])
+
+AC_MSG_NOTICE([Feature value: $feature_value])
 
 AC_LANG_PUSH([C++])
 
@@ -1268,6 +1300,8 @@ if test x$enable_wallet != xno; then
     AC_MSG_RESULT([$use_sqlite])
 fi
 
+AC_CHECK_LIB([pthread], [pthread_create])
+
 dnl Check for libminiupnpc (optional)
 if test x$use_upnp != xno; then
   AC_CHECK_HEADERS(
@@ -1379,6 +1413,9 @@ else
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 fi
+
+AC_CHECK_LIB([crypto],      [main],CRYPTO_LIBS=-lcrypto, AC_MSG_ERROR(libcrypto missing))
+AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
 dnl libevent check
 
@@ -1752,17 +1789,26 @@ CPPFLAGS_TEMP="$CPPFLAGS"
 unset CPPFLAGS
 CPPFLAGS="$CPPFLAGS_TEMP"
 
+CPPFLAGS="$CPPFLAGS -I/usr/local/opt/openssl/include"
+
 LDFLAGS_TEMP="$LDFLAGS"
 unset LDFLAGS
 LDFLAGS="$LDFLAGS_TEMP"
+
+LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
+LDFLAGS += -pthread
 
 LIBS_TEMP="$LIBS"
 unset LIBS
 LIBS="$LIBS_TEMP"
 
+LIBS="$LIBS -lssl -lcrypto -pthread"
+
 PKGCONFIG_PATH_TEMP="$PKG_CONFIG_PATH"
 unset PKG_CONFIG_PATH
 PKG_CONFIG_PATH="$PKGCONFIG_PATH_TEMP"
+
+PKG_CONFIG_PATH="$PKG_CONFIG_PATH /usr/local/opt/openssl/lib/pkgconfig"
 
 PKGCONFIG_LIBDIR_TEMP="$PKG_CONFIG_LIBDIR"
 unset PKG_CONFIG_LIBDIR

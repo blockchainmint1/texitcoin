@@ -36,6 +36,11 @@ static void AssembleBlock(benchmark::Bench& bench)
     // Collect some loose transactions that spend the coinbases of our mined blocks
     constexpr size_t NUM_BLOCKS{200};
     std::array<CTransactionRef, NUM_BLOCKS - COINBASE_MATURITY + 1> txs;
+
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
+
     for (size_t b{0}; b < NUM_BLOCKS; ++b) {
         CMutableTransaction tx;
         tx.vin.push_back(MineBlock(test_setup.m_node, SCRIPT_PUB));
@@ -44,6 +49,10 @@ static void AssembleBlock(benchmark::Bench& bench)
         if (NUM_BLOCKS - b >= COINBASE_MATURITY)
             txs.at(b) = MakeTransactionRef(tx);
     }
+
+#endif
+#endif
+#endif
     {
         LOCK(::cs_main); // Required for ::AcceptToMemoryPool.
 
@@ -53,10 +62,16 @@ static void AssembleBlock(benchmark::Bench& bench)
             assert(ret);
         }
     }
-
+    
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     bench.run([&] {
         PrepareBlock(test_setup.m_node, SCRIPT_PUB);
     });
+#endif
+#endif
+#endif
 }
 
 BENCHMARK(AssembleBlock);

@@ -13,6 +13,9 @@ class CScript;
 class CTxIn;
 struct NodeContext;
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 /** Returns the generated coin */
 CTxIn MineBlock(const NodeContext&, const CScript& coinbase_scriptPubKey);
 
@@ -21,5 +24,8 @@ std::shared_ptr<CBlock> PrepareBlock(const NodeContext&, const CScript& coinbase
 
 /** RPC-like helper function, returns the generated coin */
 CTxIn generatetoaddress(const NodeContext&, const std::string& address);
+#endif
+#endif
+#endif
 
 #endif // BITCOIN_TEST_UTIL_MINING_H

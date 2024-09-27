@@ -94,6 +94,9 @@ BOOST_AUTO_TEST_CASE(findAncestorByHash)
     BOOST_CHECK(!chain->findAncestorByHash(active[10]->GetBlockHash(), active[20]->GetBlockHash()));
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 BOOST_AUTO_TEST_CASE(findCommonAncestor)
 {
     auto chain = interfaces::MakeChain(m_node);
@@ -123,6 +126,9 @@ BOOST_AUTO_TEST_CASE(findCommonAncestor)
     BOOST_CHECK_EQUAL(active_hash, active.Tip()->GetBlockHash());
     BOOST_CHECK_EQUAL(orig_hash, orig_tip->GetBlockHash());
 }
+#endif
+#endif
+#endif
 
 BOOST_AUTO_TEST_CASE(hasBlocks)
 {

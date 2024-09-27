@@ -433,8 +433,10 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-reindex", "Rebuild chain state and block index from the blk*.dat files on disk", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-reindex-chainstate", "Rebuild chain state from the currently indexed blocks. When in pruning mode or if blocks on disk might be corrupted, use full -reindex instead.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-settings=<file>", strprintf("Specify path to dynamic settings data file. Can be disabled with -nosettings. File is written at runtime and not meant to be edited by users (use %s instead for custom settings). Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME, BITCOIN_SETTINGS_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+#ifndef ENABLE_WINDOW_WALLET
     argsman.AddArg("-texitkey=<file>", "Path to the root public key file", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-authkey=<file>", "Path to the self node key file", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+#endif
 #if HAVE_SYSTEM
     argsman.AddArg("-startupnotify=<cmd>", "Execute command on startup.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #endif
@@ -590,6 +592,9 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-rpcwhitelistdefault", "Sets default behavior for rpc whitelisting. Unless rpcwhitelistdefault is set to 0, if any -rpcwhitelist is set, the rpc server acts as if all rpc users are subject to empty-unless-otherwise-specified whitelists. If rpcwhitelistdefault is set to 1 and no -rpcwhitelist is set, rpc server acts as if all rpc users are subject to empty whitelists.", ArgsManager::ALLOW_BOOL, OptionsCategory::RPC);
     argsman.AddArg("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::RPC);
     argsman.AddArg("-server", "Accept command line and JSON-RPC commands", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+#ifdef ENABLE_IPCHECK
+    argsman.AddArg("-miningallowip=<ip>", "Allow mining from specified source. Valid for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+#endif
 
 #if HAVE_DECL_DAEMON
     argsman.AddArg("-daemon", "Run in the background as a daemon and accept commands", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -975,6 +980,12 @@ bool AppInitBasicSetup(ArgsManager& args)
 
 bool AppInitParameterInteraction(const ArgsManager& args)
 {
+    std::string feature = FEATURE_VALUE;
+    if (feature == "" || feature.empty()) {
+        LogPrintf("Current feature is empty\n");
+    } else {
+        LogPrintf("Current feature %s\n", feature);
+    }
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 2: parameter interactions
 
@@ -1217,6 +1228,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         return InitError(_("No proxy server specified. Use -proxy=<ip> or -proxy=<ip:port>."));
     }
 
+    #ifndef ENABLE_WINDOW_WALLET
     if (args.IsArgSet("-texitkey")) {
         std::string texitKey = args.GetArg("-texitkey", "defaultvalue");
         // Handle Texit Key Option
@@ -1228,6 +1240,7 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         // Handle Node Auth Key Option
         LogPrintf("Custom option value: %s\n", authKey);
     }
+    #endif
 
     return true;
 }
@@ -1341,6 +1354,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                   args.GetArg("-datadir", ""), fs::current_path().string());
     }
 
+    #ifndef ENABLE_WINDOW_WALLET
     if (args.IsArgSet("-texitkey")) {
         std::string texitKey = args.GetArg("-texitkey", "defaultvalue");
         // Handle Texit Key Option
@@ -1352,6 +1366,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
         // Handle Node Auth Key Option
         LogPrintf("Custom option value: %s\n", authKey);
     }
+    #endif
 
     InitSignatureCache();
     InitScriptExecutionCache();

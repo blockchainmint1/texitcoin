@@ -200,13 +200,22 @@ TestChain100Setup::TestChain100Setup()
     // Generate a 100-block chain:
     coinbaseKey.MakeNewKey(true);
     CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     for (int i = 0; i < COINBASE_MATURITY; i++) {
         std::vector<CMutableTransaction> noTxns;
         CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
         m_coinbase_txns.push_back(b.vtx[0]);
     }
+#endif
+#endif
+#endif
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 CBlock TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
 {
     const CChainParams& chainparams = Params();
@@ -226,6 +235,9 @@ CBlock TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransa
 
     return block;
 }
+#endif
+#endif
+#endif
 
 TestChain100Setup::~TestChain100Setup()
 {

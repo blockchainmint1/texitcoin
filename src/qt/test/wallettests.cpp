@@ -135,6 +135,9 @@ void BumpFee(TransactionView& view, const uint256& txid, bool expectDisabled, st
 //     QT_QPA_PLATFORM=xcb     src/qt/test/test_bitcoin-qt  # Linux
 //     QT_QPA_PLATFORM=windows src/qt/test/test_bitcoin-qt  # Windows
 //     QT_QPA_PLATFORM=cocoa   src/qt/test/test_bitcoin-qt  # macOS
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 void TestGUI(interfaces::Node& node)
 {
     // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
@@ -271,6 +274,9 @@ void TestGUI(interfaces::Node& node)
     removeRequestButton->click();
     QCOMPARE(requestTableModel->rowCount({}), currentRowCount-1);
 }
+#endif
+#endif
+#endif
 
 } // namespace
 
@@ -287,5 +293,11 @@ void WalletTests::walletTests()
         return;
     }
 #endif
-    TestGUI(m_node);
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
+        TestGUI(m_node);
+#endif
+#endif
+#endif
 }

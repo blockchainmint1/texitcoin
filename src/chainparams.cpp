@@ -100,6 +100,10 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000200020");
         consensus.defaultAssumeValid = uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca"); 
 
+        consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
+        consensus.nAuxpowStartHeight = 73000;
+        consensus.fStrictChainId = true;
+        consensus.nLegacyBlocksBefore = 73000;
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -115,6 +119,7 @@ public:
         m_assumed_chain_state_size = 5;
 
         genesis = CreateGenesisBlock(1706236287, 481803, 0x1e0ffff0, 1, 254 * COIN);
+        
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca"));
         assert(genesis.hashMerkleRoot == uint256S("0x153328d037d91e445d5bdd330a20028cabd2ccf0ad1dbc10c5bc05fd2c476cb6"));
@@ -126,6 +131,9 @@ public:
         // release ASAP to avoid it where possible.
         vSeeds.emplace_back("node1.texitcoin.org");
         vSeeds.emplace_back("node2.texitcoin.org");
+#ifdef ENABLE_WINDOW_WALLET
+        vSeeds.emplace_back("node10.texitcoin.org");
+#endif
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,66);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
@@ -199,6 +207,10 @@ public:
 
         consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000004260a1758f04aa");
         consensus.defaultAssumeValid = uint256S("0xf32a854e54d83ba530ea5a8e8c27a3d50ac8064698095f4fe3bab791a2bf7ac6"); 
+
+        consensus.nAuxpowStartHeight = 20;
+        consensus.fStrictChainId = false;
+        consensus.nLegacyBlocksBefore = -1;
 
         pchMessageStart[0] = 0x44;
         pchMessageStart[1] = 0xb0;
@@ -290,6 +302,11 @@ public:
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
 
+        consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
+        consensus.nAuxpowStartHeight = 30;
+        consensus.fStrictChainId = true;
+        consensus.nLegacyBlocksBefore = 30;
+        
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
         pchMessageStart[2] = 0xb5;
