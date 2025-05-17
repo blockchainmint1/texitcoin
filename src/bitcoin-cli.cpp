@@ -480,6 +480,9 @@ public:
     }
 };
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 /** Process RPC generatetoaddress request. */
 class GenerateToAddressRequestHandler : public BaseRequestHandler
 {
@@ -501,6 +504,9 @@ public:
 protected:
     std::string address_str;
 };
+#endif
+#endif
+#endif
 
 /** Process default single requests */
 class DefaultRequestHandler: public BaseRequestHandler {
@@ -734,6 +740,9 @@ static UniValue GetNewAddress()
     return ConnectAndCallRPC(&rh, "getnewaddress", /* args=*/{}, wallet_name);
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 /**
  * Check bounds and set up args for RPC generatetoaddress params: nblocks, address, maxtries.
  * @param[in] address  Reference to const string address to insert into the args.
@@ -749,6 +758,9 @@ static void SetGenerateToAddressArgs(const std::string& address, std::vector<std
     }
     args.emplace(args.begin() + 1, address);
 }
+#endif
+#endif
+#endif
 
 static int CommandLineRPC(int argc, char *argv[])
 {
@@ -811,6 +823,9 @@ static int CommandLineRPC(int argc, char *argv[])
         } else if (gArgs.GetBoolArg("-netinfo", false)) {
             rh.reset(new NetinfoRequestHandler());
         } else if (gArgs.GetBoolArg("-generate", false)) {
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
             const UniValue getnewaddress{GetNewAddress()};
             const UniValue& error{find_value(getnewaddress, "error")};
             if (error.isNull()) {
@@ -819,6 +834,9 @@ static int CommandLineRPC(int argc, char *argv[])
             } else {
                 ParseError(error, strPrint, nRet);
             }
+#endif
+#endif
+#endif
         } else {
             rh.reset(new DefaultRequestHandler());
             if (args.size() < 1) {

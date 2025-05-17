@@ -37,10 +37,16 @@ static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const b
     const Optional<std::string> address_mine{add_mine ? Optional<std::string>{getnewaddress(wallet)} : nullopt};
     if (add_watchonly) importaddress(wallet, ADDRESS_WATCHONLY);
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     for (int i = 0; i < 100; ++i) {
         generatetoaddress(test_setup.m_node, address_mine.get_value_or(ADDRESS_WATCHONLY));
         generatetoaddress(test_setup.m_node, ADDRESS_WATCHONLY);
     }
+#endif
+#endif
+#endif
     SyncWithValidationInterfaceQueue();
 
     auto bal = wallet.GetBalance(); // Cache

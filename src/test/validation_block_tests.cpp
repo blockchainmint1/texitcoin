@@ -67,6 +67,9 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
     CScript pubKey;
     pubKey << i++ << OP_TRUE;
 
+#if defined(ENABLE_BLOCK_ALL_MINING) || defined(ENABLE_WINDOW_WALLET)  || defined(ENABLE_TEXIT_NODE_LOGGING)
+    return nullptr;
+#else
     auto ptemplate = BlockAssembler(*m_node.mempool, Params()).CreateNewBlock(pubKey);
     auto pblock = std::make_shared<CBlock>(ptemplate->block);
     pblock->hashPrevBlock = prev_hash;
@@ -91,6 +94,7 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
     pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
 
     return pblock;
+#endif
 }
 
 std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock> pblock)
@@ -338,6 +342,9 @@ BOOST_AUTO_TEST_CASE(mempool_locks_reorg)
     }
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 BOOST_AUTO_TEST_CASE(witness_commitment_index)
 {
     CScript pubKey;
@@ -371,4 +378,7 @@ BOOST_AUTO_TEST_CASE(witness_commitment_index)
 
     BOOST_CHECK_EQUAL(GetWitnessCommitmentIndex(pblock), 2);
 }
+#endif
+#endif
+#endif
 BOOST_AUTO_TEST_SUITE_END()

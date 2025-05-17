@@ -36,10 +36,14 @@
 #include <validationinterface.h>
 #include <versionbitsinfo.h>
 #include <warnings.h>
+#include <logging.h>
 
 #include <memory>
 #include <stdint.h>
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
@@ -117,14 +121,17 @@ static bool GenerateBlock(ChainstateManager& chainman, CBlock& block, uint64_t& 
 
     CChainParams chainparams(Params());
 
-    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetPoWHash(), block.nBits, chainparams.GetConsensus()) && !ShutdownRequested()) {
-        ++block.nNonce;
+    CAuxPow::initAuxPow(block);
+    CPureBlockHeader& miningHeader = block.auxpow->parentBlock;
+
+    while (max_tries > 0 && miningHeader.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(miningHeader.GetPoWHash(), block.nBits, chainparams.GetConsensus()) && !ShutdownRequested()) {
+        ++miningHeader.nNonce;
         --max_tries;
     }
     if (max_tries == 0 || ShutdownRequested()) {
         return false;
     }
-    if (block.nNonce == std::numeric_limits<uint32_t>::max()) {
+    if (miningHeader.nNonce == std::numeric_limits<uint32_t>::max()) {
         return true;
     }
 
@@ -147,11 +154,14 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
         nHeight = ::ChainActive().Height();
         nHeightEnd = nHeight+nGenerate;
     }
+    LogPrintf("DEBUG[%s]: Block Height = %d\n", __func__, nHeight);
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd && !ShutdownRequested())
     {
+        LogPrintf("DEBUG[%s]: Loading block template\n", __func__);
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, Params()).CreateNewBlock(coinbase_script));
+        LogPrintf("DEBUG[%s]: Loaded block template\n", __func__);
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -168,6 +178,9 @@ static UniValue generateBlocks(ChainstateManager& chainman, const CTxMemPool& me
     }
     return blockHashes;
 }
+#endif
+#endif
+#endif
 
 static bool getScriptFromDescriptor(const std::string& descriptor, CScript& script, std::string& error)
 {
@@ -207,6 +220,9 @@ static bool getScriptFromDescriptor(const std::string& descriptor, CScript& scri
     }
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 static RPCHelpMan generatetodescriptor()
 {
     return RPCHelpMan{
@@ -243,6 +259,9 @@ static RPCHelpMan generatetodescriptor()
 },
     };
 }
+#endif
+#endif
+#endif
 
 static RPCHelpMan generate()
 {
@@ -256,6 +275,9 @@ static RPCHelpMan generate()
     }};
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 static RPCHelpMan generatetoaddress()
 {
     return RPCHelpMan{"generatetoaddress",
@@ -445,7 +467,9 @@ static RPCHelpMan getmininginfo()
 },
     };
 }
-
+#endif
+#endif
+#endif
 
 // NOTE: Unlike wallet RPC (which use BTC values), mining RPCs follow GBT (BIP 22) in using satoshi amounts
 static RPCHelpMan prioritisetransaction()
@@ -513,6 +537,9 @@ static std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
     return s;
 }
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
 static RPCHelpMan getblocktemplate()
 {
     return RPCHelpMan{"getblocktemplate",
@@ -998,6 +1025,9 @@ static RPCHelpMan submitblock()
 },
     };
 }
+#endif
+#endif
+#endif
 
 static RPCHelpMan submitheader()
 {
@@ -1222,23 +1252,323 @@ static RPCHelpMan estimaterawfee()
     };
 }
 
+/* ************************************************************************** */
+/* Merge mining.  */
+
+/**
+ * The variables below are used to keep track of created and not yet
+ * submitted auxpow blocks.  Lock them to be sure even for multiple
+ * RPC threads running in parallel.
+ */
+static RecursiveMutex cs_auxblockCache;
+static std::map<uint256, CBlock*> mapNewBlock;
+static std::vector<std::unique_ptr<CBlockTemplate>> vNewBlockTemplate;
+
+static
+void AuxMiningCheck(const NodeContext& node)
+{
+
+  if(!node.connman)
+    throw JSONRPCError(RPC_CLIENT_P2P_DISABLED,
+                       "Error: Peer-to-peer functionality missing or disabled");
+
+  if (node.connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0
+        && !Params().MineBlocksOnDemand())
+    throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED,
+                       "Texitcoin is not connected!");
+
+  if (::ChainstateActive().IsInitialBlockDownload() && !Params().MineBlocksOnDemand())
+    throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
+                       "Texitcoin is downloading blocks...");
+
+  /* This should never fail, since the chain is already
+     past the point of merge-mining start.  Check nevertheless.  */
+  {
+    LOCK(cs_main);
+    if (::ChainActive().Height() + 1 < Params().GetConsensus().nAuxpowStartHeight)
+      throw std::runtime_error("mining auxblock method is not yet available");
+  }
+}
+
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
+static
+UniValue AuxMiningCreateBlock(const util::Ref& context, const CScript& scriptPubKey)
+{
+    const NodeContext& node = EnsureNodeContext(context);
+    const CTxMemPool& mempool = EnsureMemPool(context);
+
+    AuxMiningCheck(node);
+
+    LOCK(cs_auxblockCache);
+
+    static unsigned nTransactionsUpdatedLast;
+    static const CBlockIndex* pindexPrev = nullptr;
+    static uint64_t nStart;
+    static CBlock* pblock = nullptr;
+    static unsigned nExtraNonce = 0;
+
+    // Update block
+    {
+    LOCK(cs_main);
+    if (pindexPrev != ::ChainActive().Tip()
+        || (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast
+            && GetTime() - nStart > 60))
+    {
+        if (pindexPrev != ::ChainActive().Tip())
+        {
+            // Clear old blocks since they're obsolete now.
+            mapNewBlock.clear();
+            vNewBlockTemplate.clear();
+            pblock = nullptr;
+        }
+
+        // Create new block with nonce = 0 and extraNonce = 1
+        std::unique_ptr<CBlockTemplate> newBlock
+            = BlockAssembler(mempool, Params()).CreateNewBlock(scriptPubKey);
+        if (!newBlock)
+            throw JSONRPCError(RPC_OUT_OF_MEMORY, "out of memory");
+
+        // Update state only when CreateNewBlock succeeded
+        nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+        pindexPrev = ::ChainActive().Tip();
+        nStart = GetTime();
+
+        // Finalise it by setting the version and building the merkle root
+        IncrementExtraNonce(&newBlock->block, pindexPrev, nExtraNonce);
+        newBlock->block.SetAuxpowFlag(true);
+
+        // Save
+        pblock = &newBlock->block;
+        mapNewBlock[pblock->GetHash()] = pblock;
+        vNewBlockTemplate.push_back(std::move(newBlock));
+    }
+    }
+
+    // At this point, pblock is always initialised:  If we make it here
+    // without creating a new block above, it means that, in particular,
+    // pindexPrev == chainActive.Tip().  But for that to happen, we must
+    // already have created a pblock in a previous call, as pindexPrev is
+    // initialised only when pblock is.
+    assert(pblock);
+
+    arith_uint256 target;
+    bool fNegative, fOverflow;
+    target.SetCompact(pblock->nBits, &fNegative, &fOverflow);
+    if (fNegative || fOverflow || target == 0)
+        throw std::runtime_error("invalid difficulty bits in block");
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("hash", pblock->GetHash().GetHex());
+    result.pushKV("chainid", pblock->GetChainId());
+    result.pushKV("previousblockhash", pblock->hashPrevBlock.GetHex());
+    result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue);
+    result.pushKV("bits", strprintf("%08x", pblock->nBits));
+    result.pushKV("height", static_cast<int64_t> (pindexPrev->nHeight + 1));
+    result.pushKV("target", HexStr(BEGIN(target), END(target)));
+
+
+    return result;
+}
+#endif
+#endif
+#endif
+
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
+static
+bool AuxMiningSubmitBlock(const util::Ref& context, const std::string& hashHex, const std::string& auxpowHex)
+{
+    const NodeContext& node = EnsureNodeContext(context);
+    const CTxMemPool& mempool = EnsureMemPool(context);
+
+    AuxMiningCheck(node);
+
+    LOCK(cs_auxblockCache);
+
+    uint256 hash;
+    hash.SetHex(hashHex);
+
+    const std::map<uint256, CBlock*>::iterator mit = mapNewBlock.find(hash);
+    if (mit == mapNewBlock.end())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "block hash unknown");
+    CBlock& block = *mit->second;
+
+    const std::vector<unsigned char> vchAuxPow = ParseHex(auxpowHex);
+    CDataStream ss(vchAuxPow, SER_GETHASH, PROTOCOL_VERSION);
+    CAuxPow pow;
+    ss >> pow;
+    block.SetAuxpow(new CAuxPow(pow));
+    assert(block.GetHash() == hash);
+
+    submitblock_StateCatcher sc(block.GetHash());
+    RegisterValidationInterface(&sc);
+    std::shared_ptr<const CBlock> shared_block
+      = std::make_shared<const CBlock>(block);
+    bool fAccepted = EnsureChainman(context).ProcessNewBlock(Params(), shared_block, true, nullptr);
+    UnregisterValidationInterface(&sc);
+
+    return fAccepted;
+}
+#endif
+#endif
+#endif
+
+//UniValue getauxblock(const JSONRPCRequest& request)
+//{
+//    if (request.fHelp
+//          || (request.params.size() != 0 && request.params.size() != 2))
+//        throw std::runtime_error(
+//            "getauxblock (hash auxpow)\n"
+//            "\nCreate or submit a merge-mined block.\n"
+//            "\nWithout arguments, create a new block and return information\n"
+//            "required to merge-mine it.  With arguments, submit a solved\n"
+//            "auxpow for a previously returned block.\n"
+//            "\nArguments:\n"
+//            "1. hash      (string, optional) hash of the block to submit\n"
+//            "2. auxpow    (string, optional) serialised auxpow found\n"
+//            "\nResult (without arguments):\n"
+//            "{\n"
+//            "  \"hash\"               (string) hash of the created block\n"
+//            "  \"chainid\"            (numeric) chain ID for this block\n"
+//            "  \"previousblockhash\"  (string) hash of the previous block\n"
+//            "  \"coinbasevalue\"      (numeric) value of the block's coinbase\n"
+//            "  \"bits\"               (string) compressed target of the block\n"
+//            "  \"height\"             (numeric) height of the block\n"
+//            "  \"_target\"            (string) target in reversed byte order, deprecated\n"
+//            "}\n"
+//            "\nResult (with arguments):\n"
+//            "xxxxx        (boolean) whether the submitted block was correct\n"
+//            "\nExamples:\n"
+//            + HelpExampleCli("getauxblock", "")
+//            + HelpExampleCli("getauxblock", "\"hash\" \"serialised auxpow\"")
+//            + HelpExampleRpc("getauxblock", "")
+//            );
+//
+//    boost::shared_ptr<CReserveScript> coinbaseScript;
+//    GetMainSignals().ScriptForMining(coinbaseScript);
+//
+//    // If the keypool is exhausted, no script is returned at all.  Catch this.
+//    if (!coinbaseScript)
+//        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+//
+//    //throw an error if no script was provided
+//    if (!coinbaseScript->reserveScript.size())
+//        throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available (mining requires a wallet)");
+//
+//    /* Create a new block */
+//    if (request.params.size() == 0)
+//        return AuxMiningCreateBlock(request.context, coinbaseScript->reserveScript);
+//
+//    /* Submit a block instead.  Note that this need not lock cs_main,
+//       since ProcessNewBlock below locks it instead.  */
+//    assert(request.params.size() == 2);
+//    bool fAccepted = AuxMiningSubmitBlock(request.context, request.params[0].get_str(),request.params[1].get_str());
+//    if (fAccepted)
+//        coinbaseScript->KeepScript();
+//
+//    return fAccepted;
+//}
+
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
+UniValue createauxblock(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "createauxblock <address>\n"
+            "\ncreate a new block and return information required to merge-mine it.\n"
+            "\nArguments:\n"
+            "1. address      (string, required) specify coinbase transaction payout address\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"hash\"               (string) hash of the created block\n"
+            "  \"chainid\"            (numeric) chain ID for this block\n"
+            "  \"previousblockhash\"  (string) hash of the previous block\n"
+            "  \"coinbasevalue\"      (numeric) value of the block's coinbase\n"
+            "  \"bits\"               (string) compressed target of the block\n"
+            "  \"height\"             (numeric) height of the block\n"
+            "  \"_target\"            (string) target in reversed byte order, deprecated\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("createauxblock", "\"address\"")
+            + HelpExampleRpc("createauxblock", "\"address\"")
+            );
+
+    // Check coinbase payout address
+    CTxDestination txDestination = DecodeDestination(request.params[0].get_str());
+    if (!IsValidDestination(txDestination))
+        throw JSONRPCError(RPC_INVALID_PARAMETER,
+                           "Invalid coinbase payout address");
+
+    const CScript scriptPubKey = GetScriptForDestination(txDestination);
+
+    return AuxMiningCreateBlock(request.context, scriptPubKey);
+}
+
+UniValue submitauxblock(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw std::runtime_error(
+            "submitauxblock <hash> <auxpow>\n"
+            "\nsubmit a solved auxpow for a previously block created by 'createauxblock'.\n"
+            "\nArguments:\n"
+            "1. hash      (string, required) hash of the block to submit\n"
+            "2. auxpow    (string, required) serialised auxpow found\n"
+            "\nResult:\n"
+            "xxxxx        (boolean) whether the submitted block was correct\n"
+            "\nExamples:\n"
+            + HelpExampleCli("submitauxblock", "\"hash\" \"serialised auxpow\"")
+            + HelpExampleRpc("submitauxblock", "\"hash\" \"serialised auxpow\"")
+            );
+
+    return AuxMiningSubmitBlock(request.context, request.params[0].get_str(), request.params[1].get_str());
+}
+#endif
+#endif
+#endif
+
 void RegisterMiningRPCCommands(CRPCTable &t)
 {
 // clang-format off
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
   //  --------------------- ------------------------  -----------------------  ----------
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     { "mining",             "getnetworkhashps",       &getnetworkhashps,       {"nblocks","height"} },
     { "mining",             "getmininginfo",          &getmininginfo,          {} },
+#endif
+#endif
+#endif
     { "mining",             "prioritisetransaction",  &prioritisetransaction,  {"txid","dummy","fee_delta"} },
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
     { "mining",             "getblocktemplate",       &getblocktemplate,       {"template_request"} },
     { "mining",             "submitblock",            &submitblock,            {"hexdata","dummy"} },
+#endif
+#endif
+#endif
     { "mining",             "submitheader",           &submitheader,           {"hexdata"} },
 
+#ifndef ENABLE_BLOCK_ALL_MINING
+#ifndef ENABLE_WINDOW_WALLET
+#ifndef ENABLE_TEXIT_NODE_LOGGING
+//    { "mining",             "getauxblock",            &getauxblock,             {"hash", "auxpow"} },
+    { "mining",             "createauxblock",         &createauxblock,           {"address"} },
+    { "mining",             "submitauxblock",         &submitauxblock,           {"hash", "auxpow"} },
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "generatetodescriptor",   &generatetodescriptor,   {"num_blocks","descriptor","maxtries"} },
     { "generating",         "generateblock",          &generateblock,          {"output","transactions"} },
+#endif
+#endif
+#endif
 
     { "util",               "estimatesmartfee",       &estimatesmartfee,       {"conf_target", "estimate_mode"} },
 
