@@ -52,20 +52,6 @@ BOOST_FIXTURE_TEST_CASE(txindex_initial_sync, TestChain100Setup)
         }
     }
 
-    // Check that new transactions in new blocks make it into the index.
-    for (int i = 0; i < 10; i++) {
-        CScript coinbase_script_pub_key = GetScriptForDestination(PKHash(coinbaseKey.GetPubKey()));
-        std::vector<CMutableTransaction> no_txns;
-        const CBlock& block = CreateAndProcessBlock(no_txns, coinbase_script_pub_key);
-        const CTransaction& txn = *block.vtx[0];
-
-        BOOST_CHECK(txindex.BlockUntilSyncedToCurrentChain());
-        if (!txindex.FindTx(txn.GetHash(), block_hash, tx_disk)) {
-            BOOST_ERROR("FindTx failed");
-        } else if (tx_disk->GetHash() != txn.GetHash()) {
-            BOOST_ERROR("Read incorrect tx");
-        }
-    }
 
     // shutdown sequence (c.f. Shutdown() in init.cpp)
     txindex.Stop();

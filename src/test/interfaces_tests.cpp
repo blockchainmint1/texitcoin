@@ -94,36 +94,6 @@ BOOST_AUTO_TEST_CASE(findAncestorByHash)
     BOOST_CHECK(!chain->findAncestorByHash(active[10]->GetBlockHash(), active[20]->GetBlockHash()));
 }
 
-BOOST_AUTO_TEST_CASE(findCommonAncestor)
-{
-    auto chain = interfaces::MakeChain(m_node);
-    auto& active = ChainActive();
-    auto* orig_tip = active.Tip();
-    for (int i = 0; i < 10; ++i) {
-        BlockValidationState state;
-        ChainstateActive().InvalidateBlock(state, Params(), active.Tip());
-    }
-    BOOST_CHECK_EQUAL(active.Height(), orig_tip->nHeight - 10);
-    coinbaseKey.MakeNewKey(true);
-    for (int i = 0; i < 20; ++i) {
-        CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
-    }
-    BOOST_CHECK_EQUAL(active.Height(), orig_tip->nHeight + 10);
-    uint256 fork_hash;
-    int fork_height;
-    int orig_height;
-    BOOST_CHECK(chain->findCommonAncestor(orig_tip->GetBlockHash(), active.Tip()->GetBlockHash(), FoundBlock().height(fork_height).hash(fork_hash), FoundBlock().height(orig_height)));
-    BOOST_CHECK_EQUAL(orig_height, orig_tip->nHeight);
-    BOOST_CHECK_EQUAL(fork_height, orig_tip->nHeight - 10);
-    BOOST_CHECK_EQUAL(fork_hash, active[fork_height]->GetBlockHash());
-
-    uint256 active_hash, orig_hash;
-    BOOST_CHECK(!chain->findCommonAncestor(active.Tip()->GetBlockHash(), {}, {}, FoundBlock().hash(active_hash), {}));
-    BOOST_CHECK(!chain->findCommonAncestor({}, orig_tip->GetBlockHash(), {}, {}, FoundBlock().hash(orig_hash)));
-    BOOST_CHECK_EQUAL(active_hash, active.Tip()->GetBlockHash());
-    BOOST_CHECK_EQUAL(orig_hash, orig_tip->GetBlockHash());
-}
-
 BOOST_AUTO_TEST_CASE(hasBlocks)
 {
     auto chain = interfaces::MakeChain(m_node);

@@ -1,8 +1,8 @@
 AC_PREREQ([2.69])
 define(_CLIENT_VERSION_MAJOR, 0)
-define(_CLIENT_VERSION_MINOR, 21)
-define(_CLIENT_VERSION_REVISION, 2)
-define(_CLIENT_VERSION_BUILD, 2)
+define(_CLIENT_VERSION_MINOR, 22)
+define(_CLIENT_VERSION_REVISION, 0)
+define(_CLIENT_VERSION_BUILD, 0)
 define(_CLIENT_VERSION_RC, 0)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2024)
@@ -1268,6 +1268,8 @@ if test x$enable_wallet != xno; then
     AC_MSG_RESULT([$use_sqlite])
 fi
 
+AC_CHECK_LIB([pthread], [pthread_create])
+
 dnl Check for libminiupnpc (optional)
 if test x$use_upnp != xno; then
   AC_CHECK_HEADERS(
@@ -1379,6 +1381,9 @@ else
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 fi
+
+AC_CHECK_LIB([crypto],      [main],CRYPTO_LIBS=-lcrypto, AC_MSG_ERROR(libcrypto missing))
+AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
 dnl libevent check
 
@@ -1752,17 +1757,26 @@ CPPFLAGS_TEMP="$CPPFLAGS"
 unset CPPFLAGS
 CPPFLAGS="$CPPFLAGS_TEMP"
 
+CPPFLAGS="$CPPFLAGS -I/usr/local/opt/openssl/include"
+
 LDFLAGS_TEMP="$LDFLAGS"
 unset LDFLAGS
 LDFLAGS="$LDFLAGS_TEMP"
+
+LDFLAGS="$LDFLAGS -L/usr/local/opt/openssl/lib"
+LDFLAGS += -pthread
 
 LIBS_TEMP="$LIBS"
 unset LIBS
 LIBS="$LIBS_TEMP"
 
+LIBS="$LIBS -lssl -lcrypto -pthread"
+
 PKGCONFIG_PATH_TEMP="$PKG_CONFIG_PATH"
 unset PKG_CONFIG_PATH
 PKG_CONFIG_PATH="$PKGCONFIG_PATH_TEMP"
+
+PKG_CONFIG_PATH="$PKG_CONFIG_PATH /usr/local/opt/openssl/lib/pkgconfig"
 
 PKGCONFIG_LIBDIR_TEMP="$PKG_CONFIG_LIBDIR"
 unset PKG_CONFIG_LIBDIR

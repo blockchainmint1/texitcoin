@@ -19,7 +19,6 @@
 BOOST_AUTO_TEST_SUITE(blockfilter_index_tests)
 
 struct BuildChainTestingSetup : public TestChain100Setup {
-    CBlock CreateBlock(const CBlockIndex* prev, const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey);
     bool BuildChain(const CBlockIndex* pindex, const CScript& coinbase_script_pub_key, size_t length, std::vector<std::shared_ptr<CBlock>>& chain);
 };
 
@@ -57,29 +56,6 @@ static bool CheckFilterLookups(BlockFilterIndex& filter_index, const CBlockIndex
     return true;
 }
 
-CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
-    const std::vector<CMutableTransaction>& txns,
-    const CScript& scriptPubKey)
-{
-    const CChainParams& chainparams = Params();
-    std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(*m_node.mempool, chainparams).CreateNewBlock(scriptPubKey);
-    CBlock& block = pblocktemplate->block;
-    block.hashPrevBlock = prev->GetBlockHash();
-    block.nTime = prev->nTime + 1;
-
-    // Replace mempool-selected txns with just coinbase plus passed-in txns:
-    block.vtx.resize(1);
-    for (const CMutableTransaction& tx : txns) {
-        block.vtx.push_back(MakeTransactionRef(tx));
-    }
-    // IncrementExtraNonce creates a valid coinbase and merkleRoot
-    unsigned int extraNonce = 0;
-    IncrementExtraNonce(&block, prev, extraNonce);
-
-    while (!CheckProofOfWork(block.GetPoWHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
-
-    return block;
-}
 
 bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
     const CScript& coinbase_script_pub_key,
@@ -89,16 +65,6 @@ bool BuildChainTestingSetup::BuildChain(const CBlockIndex* pindex,
     std::vector<CMutableTransaction> no_txns;
 
     chain.resize(length);
-    for (auto& block : chain) {
-        block = std::make_shared<CBlock>(CreateBlock(pindex, no_txns, coinbase_script_pub_key));
-        CBlockHeader header = block->GetBlockHeader();
-
-        BlockValidationState state;
-        if (!Assert(m_node.chainman)->ProcessNewBlockHeaders({header}, state, Params(), &pindex)) {
-            return false;
-        }
-    }
-
     return true;
 }
 

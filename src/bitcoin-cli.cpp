@@ -480,28 +480,6 @@ public:
     }
 };
 
-/** Process RPC generatetoaddress request. */
-class GenerateToAddressRequestHandler : public BaseRequestHandler
-{
-public:
-    UniValue PrepareRequest(const std::string& method, const std::vector<std::string>& args) override
-    {
-        address_str = args.at(1);
-        UniValue params{RPCConvertValues("generatetoaddress", args)};
-        return JSONRPCRequestObj("generatetoaddress", params, 1);
-    }
-
-    UniValue ProcessReply(const UniValue &reply) override
-    {
-        UniValue result(UniValue::VOBJ);
-        result.pushKV("address", address_str);
-        result.pushKV("blocks", reply.get_obj()["result"]);
-        return JSONRPCReplyObj(result, NullUniValue, 1);
-    }
-protected:
-    std::string address_str;
-};
-
 /** Process default single requests */
 class DefaultRequestHandler: public BaseRequestHandler {
 public:
@@ -734,22 +712,6 @@ static UniValue GetNewAddress()
     return ConnectAndCallRPC(&rh, "getnewaddress", /* args=*/{}, wallet_name);
 }
 
-/**
- * Check bounds and set up args for RPC generatetoaddress params: nblocks, address, maxtries.
- * @param[in] address  Reference to const string address to insert into the args.
- * @param     args     Reference to vector of string args to modify.
- */
-static void SetGenerateToAddressArgs(const std::string& address, std::vector<std::string>& args)
-{
-    if (args.size() > 2) throw std::runtime_error("too many arguments (maximum 2 for nblocks and maxtries)");
-    if (args.size() == 0) {
-        args.emplace_back(DEFAULT_NBLOCKS);
-    } else if (args.at(0) == "0") {
-        throw std::runtime_error("the first argument (number of blocks to generate, default: " + DEFAULT_NBLOCKS + ") must be an integer value greater than zero");
-    }
-    args.emplace(args.begin() + 1, address);
-}
-
 static int CommandLineRPC(int argc, char *argv[])
 {
     std::string strPrint;
@@ -811,14 +773,6 @@ static int CommandLineRPC(int argc, char *argv[])
         } else if (gArgs.GetBoolArg("-netinfo", false)) {
             rh.reset(new NetinfoRequestHandler());
         } else if (gArgs.GetBoolArg("-generate", false)) {
-            const UniValue getnewaddress{GetNewAddress()};
-            const UniValue& error{find_value(getnewaddress, "error")};
-            if (error.isNull()) {
-                SetGenerateToAddressArgs(find_value(getnewaddress, "result").get_str(), args);
-                rh.reset(new GenerateToAddressRequestHandler());
-            } else {
-                ParseError(error, strPrint, nRet);
-            }
         } else {
             rh.reset(new DefaultRequestHandler());
             if (args.size() < 1) {

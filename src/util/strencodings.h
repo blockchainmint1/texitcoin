@@ -20,6 +20,10 @@
 
 #define ARRAYLEN(array)     (sizeof(array)/sizeof((array)[0]))
 #define BEGIN(a)            ((char*)&(a))
+#define END(a)              ((char*)&((&(a))[1]))
+#define UBEGIN(a)           ((unsigned char*)&(a))
+#define UEND(a)             ((unsigned char*)&((&(a))[1]))
+#define ARRAYLEN(array)     (sizeof(array)/sizeof((array)[0]))
 
 /** Used by SanitizeString() */
 enum SafeChars
@@ -145,6 +149,25 @@ NODISCARD bool ParseDouble(const std::string& str, double *out);
  */
 std::string HexStr(const Span<const uint8_t> s);
 inline std::string HexStr(const Span<const char> s) { return HexStr(MakeUCharSpan(s)); }
+
+template<typename T>
+std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
+{
+    std::string rv;
+    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    rv.reserve((itend-itbegin)*3);
+    for(T it = itbegin; it < itend; ++it)
+    {
+        unsigned char val = (unsigned char)(*it);
+        if(fSpaces && it != itbegin)
+            rv.push_back(' ');
+        rv.push_back(hexmap[val>>4]);
+        rv.push_back(hexmap[val&15]);
+    }
+
+    return rv;
+}
 
 /**
  * Format a paragraph of text to a fixed width, adding spaces for

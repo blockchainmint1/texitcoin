@@ -7,10 +7,12 @@
 
 #include <fs.h>
 
+#include <algorithm>
 #include <random.h>
 #include <rpc/protocol.h>
 #include <util/system.h>
 #include <util/strencodings.h>
+
 
 /**
  * JSON-RPC protocol.  Bitcoin speaks version 1.0 for maximum compatibility,
@@ -150,6 +152,7 @@ std::vector<UniValue> JSONRPCProcessBatchReply(const UniValue& in)
     return batch;
 }
 
+
 void JSONRPCRequest::parse(const UniValue& valRequest)
 {
     // Parse request
@@ -169,7 +172,7 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
     strMethod = valMethod.get_str();
     if (fLogIPs)
         LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s peeraddr=%s\n", SanitizeString(strMethod),
-            this->authUser, this->peerAddr);
+                 this->authUser, this->peerAddr);
     else
         LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s\n", SanitizeString(strMethod), this->authUser);
 

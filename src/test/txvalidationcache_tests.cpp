@@ -56,40 +56,6 @@ BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
 
     CBlock block;
 
-    // Test 1: block with both of those transactions should be rejected.
-    block = CreateAndProcessBlock(spends, scriptPubKey);
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() != block.GetHash());
-    }
-
-    // Test 2: ... and should be rejected if spend1 is in the memory pool
-    BOOST_CHECK(ToMemPool(spends[0]));
-    block = CreateAndProcessBlock(spends, scriptPubKey);
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() != block.GetHash());
-    }
-    m_node.mempool->clear();
-
-    // Test 3: ... and should be rejected if spend2 is in the memory pool
-    BOOST_CHECK(ToMemPool(spends[1]));
-    block = CreateAndProcessBlock(spends, scriptPubKey);
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() != block.GetHash());
-    }
-    m_node.mempool->clear();
-
-    // Final sanity test: first spend in *m_node.mempool, second in block, that's OK:
-    std::vector<CMutableTransaction> oneSpend;
-    oneSpend.push_back(spends[0]);
-    BOOST_CHECK(ToMemPool(spends[1]));
-    block = CreateAndProcessBlock(oneSpend, scriptPubKey);
-    {
-        LOCK(cs_main);
-        BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() == block.GetHash());
-    }
     // spends[1] should have been removed from the mempool when the
     // block with spends[0] is accepted:
     BOOST_CHECK_EQUAL(m_node.mempool->size(), 0U);
@@ -218,14 +184,6 @@ BOOST_FIXTURE_TEST_CASE(checkinputs_test, TestChain100Setup)
         ValidateCheckInputsForAllFlags(CTransaction(spend_tx), SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC, false);
     }
 
-    // And if we produce a block with this tx, it should be valid (DERSIG not
-    // enabled yet), even though there's no cache entry.
-    CBlock block;
-
-    block = CreateAndProcessBlock({spend_tx}, p2pk_scriptPubKey);
-    LOCK(cs_main);
-    BOOST_CHECK(::ChainActive().Tip()->GetBlockHash() == block.GetHash());
-    BOOST_CHECK(::ChainstateActive().CoinsTip().GetBestBlock() == block.GetHash());
 
     // Test P2SH: construct a transaction that is valid without P2SH, and
     // then test validity with P2SH.

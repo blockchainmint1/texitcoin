@@ -109,13 +109,6 @@ class CScript;
 struct TestChain100Setup : public RegTestingSetup {
     TestChain100Setup();
 
-    /**
-     * Create a new block with just given transactions, coinbase paying to
-     * scriptPubKey, and try to add it to the current chain.
-     */
-    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey);
-
     ~TestChain100Setup();
 
     std::vector<CTransactionRef> m_coinbase_txns; // For convenience, coinbase transactions

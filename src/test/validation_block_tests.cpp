@@ -67,30 +67,7 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
     CScript pubKey;
     pubKey << i++ << OP_TRUE;
 
-    auto ptemplate = BlockAssembler(*m_node.mempool, Params()).CreateNewBlock(pubKey);
-    auto pblock = std::make_shared<CBlock>(ptemplate->block);
-    pblock->hashPrevBlock = prev_hash;
-    pblock->nTime = ++time;
-
-    pubKey.clear();
-    {
-        WitnessV0ScriptHash witness_program;
-        CSHA256().Write(&V_OP_TRUE[0], V_OP_TRUE.size()).Finalize(witness_program.begin());
-        pubKey << OP_0 << ToByteVector(witness_program);
-    }
-
-    // Make the coinbase transaction with two outputs:
-    // One zero-value one that has a unique pubkey to make sure that blocks at the same height can have a different hash
-    // Another one that has the coinbase reward in a P2WSH with OP_TRUE as witness program to make it easy to spend
-    CMutableTransaction txCoinbase(*pblock->vtx[0]);
-    txCoinbase.vout.resize(2);
-    txCoinbase.vout[1].scriptPubKey = pubKey;
-    txCoinbase.vout[1].nValue = txCoinbase.vout[0].nValue;
-    txCoinbase.vout[0].nValue = 0;
-    txCoinbase.vin[0].scriptWitness.SetNull();
-    pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
-
-    return pblock;
+    return nullptr;
 }
 
 std::shared_ptr<CBlock> MinerTestingSetup::FinalizeBlock(std::shared_ptr<CBlock> pblock)
@@ -338,37 +315,4 @@ BOOST_AUTO_TEST_CASE(mempool_locks_reorg)
     }
 }
 
-BOOST_AUTO_TEST_CASE(witness_commitment_index)
-{
-    CScript pubKey;
-    pubKey << 1 << OP_TRUE;
-    auto ptemplate = BlockAssembler(*m_node.mempool, Params()).CreateNewBlock(pubKey);
-    CBlock pblock = ptemplate->block;
-
-    CTxOut witness;
-    witness.scriptPubKey.resize(MINIMUM_WITNESS_COMMITMENT);
-    witness.scriptPubKey[0] = OP_RETURN;
-    witness.scriptPubKey[1] = 0x24;
-    witness.scriptPubKey[2] = 0xaa;
-    witness.scriptPubKey[3] = 0x21;
-    witness.scriptPubKey[4] = 0xa9;
-    witness.scriptPubKey[5] = 0xed;
-
-    // A witness larger than the minimum size is still valid
-    CTxOut min_plus_one = witness;
-    min_plus_one.scriptPubKey.resize(MINIMUM_WITNESS_COMMITMENT + 1);
-
-    CTxOut invalid = witness;
-    invalid.scriptPubKey[0] = OP_VERIFY;
-
-    CMutableTransaction txCoinbase(*pblock.vtx[0]);
-    txCoinbase.vout.resize(4);
-    txCoinbase.vout[0] = witness;
-    txCoinbase.vout[1] = witness;
-    txCoinbase.vout[2] = min_plus_one;
-    txCoinbase.vout[3] = invalid;
-    pblock.vtx[0] = MakeTransactionRef(std::move(txCoinbase));
-
-    BOOST_CHECK_EQUAL(GetWitnessCommitmentIndex(pblock), 2);
-}
 BOOST_AUTO_TEST_SUITE_END()

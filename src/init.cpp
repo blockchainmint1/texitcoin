@@ -34,6 +34,8 @@
 #include <netbase.h>
 #include <node/context.h>
 #include <node/ui_interface.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
@@ -431,6 +433,8 @@ void SetupServerArgs(NodeContext& node)
     argsman.AddArg("-reindex", "Rebuild chain state and block index from the blk*.dat files on disk", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-reindex-chainstate", "Rebuild chain state from the currently indexed blocks. When in pruning mode or if blocks on disk might be corrupted, use full -reindex instead.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-settings=<file>", strprintf("Specify path to dynamic settings data file. Can be disabled with -nosettings. File is written at runtime and not meant to be edited by users (use %s instead for custom settings). Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME, BITCOIN_SETTINGS_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-texitkey=<file>", "Path to the root public key file", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-authkey=<file>", "Path to the self node key file", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #if HAVE_SYSTEM
     argsman.AddArg("-startupnotify=<cmd>", "Execute command on startup.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #endif
@@ -962,6 +966,10 @@ bool AppInitBasicSetup(ArgsManager& args)
 
     std::set_new_handler(new_handler_terminate);
 
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+
     return true;
 }
 
@@ -1209,6 +1217,18 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         return InitError(_("No proxy server specified. Use -proxy=<ip> or -proxy=<ip:port>."));
     }
 
+    if (args.IsArgSet("-texitkey")) {
+        std::string texitKey = args.GetArg("-texitkey", "defaultvalue");
+        // Handle Texit Key Option
+        LogPrintf("Custom option value: %s\n", texitKey);
+    }
+
+    if (args.IsArgSet("-authkey")) {
+        std::string authKey = args.GetArg("-authkey", "defaultvalue");
+        // Handle Node Auth Key Option
+        LogPrintf("Custom option value: %s\n", authKey);
+    }
+
     return true;
 }
 
@@ -1319,6 +1339,18 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                   "from a different location, it will be unable to locate the current data files. There could "
                   "also be data loss if texitcoin is started while in a temporary directory.\n",
                   args.GetArg("-datadir", ""), fs::current_path().string());
+    }
+
+    if (args.IsArgSet("-texitkey")) {
+        std::string texitKey = args.GetArg("-texitkey", "defaultvalue");
+        // Handle Texit Key Option
+        LogPrintf("Custom option value: %s\n", texitKey);
+    }
+
+    if (args.IsArgSet("-authkey")) {
+        std::string authKey = args.GetArg("-authkey", "defaultvalue");
+        // Handle Node Auth Key Option
+        LogPrintf("Custom option value: %s\n", authKey);
     }
 
     InitSignatureCache();
