@@ -19,6 +19,7 @@
 #include <flatfile.h>
 #include <hash.h>
 #include <index/txindex.h>
+#include <key_io.h>
 #include <logging.h>
 #include <logging/timer.h>
 #include <mw/node/CoinsView.h>
@@ -2457,6 +2458,28 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     if (block.vtx[0]->GetValueOut() > blockReward) {
         LogPrintf("ERROR: ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)\n", block.vtx[0]->GetValueOut(), blockReward);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-amount");
+    }
+
+    // Enforce required coinbase reward address from specific block height
+    if (pindex->nHeight >= chainparams.GetConsensus().nCoinbaseAddressEnforcementHeight) {
+        const std::string& strRequiredAddr = chainparams.GetRequiredCoinbaseAddress();
+        if (!strRequiredAddr.empty()) {
+            CTxDestination requiredDest = DecodeDestination(strRequiredAddr);
+            if (IsValidDestination(requiredDest)) {
+                CScript requiredScript = GetScriptForDestination(requiredDest);
+                bool fFoundRequiredAddress = false;
+                for (const auto& out : block.vtx[0]->vout) {
+                    if (out.scriptPubKey == requiredScript) {
+                        fFoundRequiredAddress = true;
+                        break;
+                    }
+                }
+                if (!fFoundRequiredAddress) {
+                    LogPrintf("ERROR: ConnectBlock(): coinbase does not pay to required address %s at height %d\n", strRequiredAddr, pindex->nHeight);
+                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-address");
+                }
+            }
+        }
     }
 
     if (!control.Wait()) {

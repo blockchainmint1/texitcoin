@@ -1593,6 +1593,17 @@ void PeerManager::UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockInde
         });
         m_connman.WakeMessageHandler();
     }
+
+    // Disconnect already-connected peers running old protocol versions once we reach the upgrade height
+    if (nNewHeight >= m_chainparams.GetConsensus().nProtocolUpgradeHeight) {
+        m_connman.ForEachNode([nNewHeight](CNode* pnode) {
+            if (pnode->nVersion != 0 && pnode->nVersion < UPGRADED_PEER_PROTO_VERSION) {
+                LogPrintf("Disconnecting peer=%d (version %d) because protocol upgrade is active at height %d\n",
+                          pnode->GetId(), pnode->nVersion.load(), nNewHeight);
+                pnode->fDisconnect = true;
+            }
+        });
+    }
 }
 
 /**
@@ -2717,6 +2728,19 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
         const int greatest_common_version = std::min(nVersion, PROTOCOL_VERSION);
         pfrom.SetCommonVersion(greatest_common_version);
         pfrom.nVersion = nVersion;
+
+        // Enforce upgraded protocol version after nProtocolUpgradeHeight
+        {
+            LOCK(cs_main);
+            const int nCurrentHeight = ::ChainActive().Height();
+            if (nCurrentHeight >= m_chainparams.GetConsensus().nProtocolUpgradeHeight &&
+                nVersion < UPGRADED_PEER_PROTO_VERSION) {
+                LogPrintf("peer=%d using old protocol version %d (minimum %d required at height %d); disconnecting\n",
+                          pfrom.GetId(), nVersion, UPGRADED_PEER_PROTO_VERSION, nCurrentHeight);
+                pfrom.fDisconnect = true;
+                return;
+            }
+        }
 
         const CNetMsgMaker msg_maker(greatest_common_version);
 
