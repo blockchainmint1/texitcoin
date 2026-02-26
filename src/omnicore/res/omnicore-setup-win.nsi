@@ -11,11 +11,11 @@ SetCompressor /SOLID lzma
 !define URL http://www.omnilayer.org/
 
 # MUI Symbol Definitions
-!define MUI_ICON "/home/hermes/Documents/texitcoin/share/pixmaps/bitcoin.ico"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "/home/hermes/Documents/texitcoin/share/pixmaps/nsis-wizard.bmp"
+!define MUI_ICON "/home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/share/pixmaps/bitcoin.ico"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "/home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/share/pixmaps/nsis-wizard.bmp"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_RIGHT
-!define MUI_HEADERIMAGE_BITMAP "/home/hermes/Documents/texitcoin/share/pixmaps/nsis-header.bmp"
+!define MUI_HEADERIMAGE_BITMAP "/home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/share/pixmaps/nsis-header.bmp"
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT HKLM
 !define MUI_STARTMENUPAGE_REGISTRY_KEY ${REGKEY}
@@ -23,7 +23,7 @@ SetCompressor /SOLID lzma
 !define MUI_STARTMENUPAGE_DEFAULTFOLDER "TexitCoin Core"
 !define MUI_FINISHPAGE_RUN $INSTDIR\omnilite-qt.exe
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP "/home/hermes/Documents/texitcoin/share/pixmaps/nsis-wizard.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "/home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/share/pixmaps/nsis-wizard.bmp"
 !define MUI_UNFINISHPAGE_NOAUTOCLOSE
 
 # Included files
@@ -47,7 +47,7 @@ Var StartMenuGroup
 !insertmacro MUI_LANGUAGE English
 
 # Installer attributes
-OutFile /home/hermes/Documents/texitcoin/omnilite-${VERSION}-win64-setup.exe
+OutFile /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/omnilite-${VERSION}-win64-setup.exe
 InstallDir "$PROGRAMFILES64\OmniLite"
 CRCCheck on
 XPStyle on
@@ -68,13 +68,13 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File /home/hermes/Documents/texitcoin/release/omnilite-qt.exe
-    File /oname=copying.txt /home/hermes/Documents/texitcoin/src/omnicore/COPYING.md
-    File /oname=readme.txt /home/hermes/Documents/texitcoin/src/omnicore/README.md
-    File /oname=release-notes.txt /home/hermes/Documents/texitcoin/src/omnicore/doc/release-notes.md
+    File /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/release/omnilite-qt.exe
+    File /oname=copying.txt /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/src/omnicore/COPYING.md
+    File /oname=readme.txt /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/src/omnicore/README.md
+    File /oname=release-notes.txt /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/src/omnicore/doc/release-notes.md
     SetOutPath $INSTDIR\daemon
-    File /home/hermes/Documents/texitcoin/release/omnilited.exe
-    File /home/hermes/Documents/texitcoin/release/omnilite-cli.exe
+    File /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/release/omnilited.exe
+    File /home/dev/Documents/uploads/project/texitcoin/chain/texitcoin/release/omnilite-cli.exe
     SetOutPath $INSTDIR
     WriteRegStr HKCU "${REGKEY}\Components" Main 1
 SectionEnd
