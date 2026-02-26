@@ -100,8 +100,8 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000200020");
         consensus.defaultAssumeValid = uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca"); 
 
-        consensus.nCoinbaseAddressEnforcementHeight = 27855;
-        consensus.nProtocolUpgradeHeight = 27855;
+        consensus.nCoinbaseAddressEnforcementHeight = 267500;
+        consensus.nProtocolUpgradeHeight = 267500;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
         consensus.nAuxpowStartHeight = 73000;
@@ -148,7 +148,7 @@ public:
         bech32_hrp = "txc";
         mweb_hrp = "txcmweb";
 
-        strRequiredCoinbaseAddress = "txc1qvjqzlv8wdqhmwc2ekxxqr00hz4v4h036aj3gvr";
+        strRequiredCoinbaseAddress = "TdaxfTr1sBjoPNbZLSWpaXxSc6bxJsNyc2";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
