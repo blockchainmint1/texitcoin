@@ -100,6 +100,9 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000200020");
         consensus.defaultAssumeValid = uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca"); 
 
+        consensus.nCoinbaseAddressEnforcementHeight = 267500;
+        consensus.nProtocolUpgradeHeight = 267500;
+
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
         consensus.nAuxpowStartHeight = 73000;
         consensus.fStrictChainId = true;
@@ -142,6 +145,7 @@ public:
         bech32_hrp = "txc";
         mweb_hrp = "txcmweb";
 
+        strRequiredCoinbaseAddress = "TdaxfTr1sBjoPNbZLSWpaXxSc6bxJsNyc2";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
@@ -205,6 +209,9 @@ public:
         consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000004260a1758f04aa");
         consensus.defaultAssumeValid = uint256S("0xf32a854e54d83ba530ea5a8e8c27a3d50ac8064698095f4fe3bab791a2bf7ac6"); 
 
+        consensus.nCoinbaseAddressEnforcementHeight = 27855;
+        consensus.nProtocolUpgradeHeight = 27855;
+
         consensus.nAuxpowStartHeight = 20;
         consensus.fStrictChainId = false;
         consensus.nLegacyBlocksBefore = -1;
@@ -236,6 +243,7 @@ public:
         bech32_hrp = "ttxc";
         mweb_hrp = "tmweb";
 
+        strRequiredCoinbaseAddress = "XizopXfH2n9NgfvTLdPtu747WuF2Zk5a5c";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = false;
@@ -299,6 +307,9 @@ public:
         consensus.nMinimumChainWork = uint256{};
         consensus.defaultAssumeValid = uint256{};
 
+        consensus.nCoinbaseAddressEnforcementHeight = 8;
+        consensus.nProtocolUpgradeHeight = 8;
+
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
         consensus.nAuxpowStartHeight = 30;
         consensus.fStrictChainId = true;
@@ -349,6 +360,8 @@ public:
 
         bech32_hrp = "rtxc";
         mweb_hrp = "tmweb";
+
+        strRequiredCoinbaseAddress = "rtxc1qfanv48ncppfuxzec25kgu0gr6xv97d7a5g9yv5";
     }
 
     /**
