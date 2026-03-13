@@ -505,6 +505,17 @@ void ArgsManager::ForceSetArg(const std::string& strArg, const std::string& strV
     m_settings.forced_settings[SettingName(strArg)] = strValue;
 }
 
+void ArgsManager::ForceSetArgs(const std::string& strArg, const std::vector<std::string>& strVector)
+{
+    LOCK(cs_args);
+    // m_settings.forced_settings[SettingName(strArg)] = strVector;
+    std::vector<util::SettingsValue> settingsVec;
+    for (const auto& str : strVector) {
+        settingsVec.emplace_back(str);
+    }
+    m_settings.command_line_options[SettingName(strArg)] = settingsVec;
+}
+
 void ArgsManager::AddArg(const std::string& name, const std::string& help, unsigned int flags, const OptionsCategory& cat)
 {
     // Split arg name from its help param
@@ -577,6 +588,9 @@ std::string ArgsManager::GetHelpMessage() const
                 break;
             case OptionsCategory::REGISTER_COMMANDS:
                 usage += HelpMessageGroup("Register Commands:");
+                break;
+            case OptionsCategory::OMNI:
+                usage += HelpMessageGroup("Omni options:");
                 break;
             default:
                 break;

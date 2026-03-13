@@ -27,6 +27,9 @@ extern const char * const DEFAULT_DEBUGLOGFILE;
 
 extern bool fLogIPs;
 
+/** Flag to indicate, whether the Omni Core log file should be reopened. */
+extern std::atomic<bool> fReopenOmniCoreLog;
+
 struct LogCategory {
     std::string category;
     bool active;
@@ -57,6 +60,7 @@ namespace BCLog {
         QT          = (1 << 19),
         LEVELDB     = (1 << 20),
         VALIDATION  = (1 << 21),
+        HANDLER     = (1 << 22),
         ALL         = ~(uint32_t)0,
     };
 

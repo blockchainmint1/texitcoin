@@ -14,6 +14,8 @@
 #include <interfaces/wallet.h>
 #include <key.h>
 #include <key_io.h>
+#include <node/context.h>
+#include <omnicore/script.h> // OmniGetDustThreshold
 #include <optional.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
@@ -31,6 +33,7 @@
 #include <util/rbf.h>
 #include <util/string.h>
 #include <util/translation.h>
+#include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/txassembler.h>
 #include <wallet/fees.h>
@@ -131,6 +134,12 @@ bool RemoveWallet(const std::shared_ptr<CWallet>& wallet, Optional<bool> load_on
 {
     std::vector<bilingual_str> warnings;
     return RemoveWallet(wallet, load_on_start, warnings);
+}
+
+bool HasWallets()
+{
+    LOCK(cs_wallets);
+    return !vpwallets.empty();
 }
 
 std::vector<std::shared_ptr<CWallet>> GetWallets()
@@ -563,6 +572,29 @@ bool CWallet::IsSpent(const OutputIndex& idx) const
 {
     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
     range = mapTxSpends.equal_range(idx);
+
+    for (TxSpends::const_iterator it = range.first; it != range.second; ++it)
+    {
+        const uint256& wtxid = it->second;
+        std::map<uint256, CWalletTx>::const_iterator mit = mapWallet.find(wtxid);
+        if (mit != mapWallet.end()) {
+            int depth = mit->second.GetDepthInMainChain();
+            if (depth > 0  || (depth == 0 && !mit->second.isAbandoned()))
+                return true; // Spent
+        }
+    }
+    return false;
+}
+
+/**
+ * Outpoint is spent if any non-conflicted transaction
+ * spends it:
+ */
+bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
+{
+    const COutPoint outpoint(hash, n);
+    std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
+    range = mapTxSpends.equal_range(outpoint);
 
     for (TxSpends::const_iterator it = range.first; it != range.second; ++it)
     {
@@ -2423,6 +2455,14 @@ bool CWalletTx::InMempool() const
     return fInMempool;
 }
 
+bool CWalletTx::InMempoolDirect() const
+{
+    CTxMemPool* mempool = pwallet->chain().m_node.mempool.get();
+    // // CTxMemPool& mempool = g_chainman.ActiveChainstate.m_mempool;
+    LOCK(mempool->cs);
+    return mempool->exists(GetHash());
+}
+
 bool CWalletTx::IsTrusted() const
 {
     std::set<uint256> trusted_parents;
@@ -2430,7 +2470,7 @@ bool CWalletTx::IsTrusted() const
     return pwallet->IsTrusted(*this, trusted_parents);
 }
 
-bool CWallet::IsTrusted(const CWalletTx& wtx, std::set<uint256>& trusted_parents) const
+bool CWallet::IsTrusted(const CWalletTx& wtx, std::set<uint256>& trusted_parents, bool directMemCheck) const
 {
     AssertLockHeld(cs_wallet);
     // Quick answer in most cases
@@ -2446,7 +2486,10 @@ bool CWallet::IsTrusted(const CWalletTx& wtx, std::set<uint256>& trusted_parents
     if (!m_spend_zero_conf_change || !wtx.IsFromMe(ISMINE_ALL)) return false;
 
     // Don't trust unconfirmed transactions from us unless they are in the mempool.
-    if (!wtx.InMempool()) return false;
+    if (directMemCheck && !wtx.InMempoolDirect())
+        return false;
+    else if (!wtx.InMempool())
+        return false;
 
     // Trusted if all inputs are from us and are in the mempool:
     for (const CTxInput& input : wtx.tx->GetInputs())
@@ -3108,11 +3151,13 @@ bool CWallet::CreateTransaction(
         bilingual_str& error,
         const CCoinControl& coin_control,
         FeeCalculation& fee_calc_out,
-        bool sign)
+        bool sign,
+        bool omni,
+        CAmount min_fee)
 {
     int nChangePosIn = nChangePosInOut;
 
-    Optional<AssembledTx> tx1 = TxAssembler(*this).AssembleTx(vecSend, coin_control, nChangePosIn, sign, error);
+    Optional<AssembledTx> tx1 = TxAssembler(*this).AssembleTx(vecSend, coin_control, nChangePosIn, sign, omni, min_fee, error);
     if (tx1) {
         tx = tx1->tx;
         nFeeRet = tx1->fee;
@@ -3126,7 +3171,7 @@ bool CWallet::CreateTransaction(
         tmp_cc.m_avoid_partial_spends = true;
         bilingual_str error2; // fired and forgotten; if an error occurs, we discard the results
 
-        Optional<AssembledTx> tx2 = TxAssembler(*this).AssembleTx(vecSend, tmp_cc, nChangePosIn, sign, error2);
+        Optional<AssembledTx> tx2 = TxAssembler(*this).AssembleTx(vecSend, tmp_cc, nChangePosIn, sign, omni, min_fee, error2);
         if (tx2) {
             // if fee of this alternative one is within the range of the max fee, we use this one
             const bool use_aps = tx2->fee <= tx1->fee + m_max_aps_fee;
@@ -3428,6 +3473,34 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances() const
     }
 
     return balances;
+}
+
+OutputType CWallet::TransactionChangeType(OutputType change_type, const std::vector<CRecipient>& vecSend)
+{
+    // If -changetype is specified, always use that change type.
+    if (change_type != OutputType::CHANGE_AUTO) {
+        return change_type;
+    }
+
+    // if m_default_address_type is legacy, use legacy address as change (even
+    // if some of the outputs are P2WPKH or P2WSH).
+    if (m_default_address_type == OutputType::LEGACY) {
+        return OutputType::LEGACY;
+    }
+
+    // if any destination is P2WPKH or P2WSH, use P2WPKH for the change
+    // output.
+    for (const auto& recipient : vecSend) {
+        // Check if any destination contains a witness program:
+        int witnessversion = 0;
+        std::vector<unsigned char> witnessprogram;
+        if (recipient.GetScript().IsWitnessProgram(witnessversion, witnessprogram)) {
+            return OutputType::BECH32;
+        }
+    }
+
+    // else use m_default_address_type for change
+    return m_default_address_type;
 }
 
 std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const

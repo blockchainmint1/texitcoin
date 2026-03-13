@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include <rpc/util.h>
+
 class CRPCCommand;
 class CWallet;
 class JSONRPCRequest;
@@ -30,6 +32,7 @@ Span<const CRPCCommand> GetWalletRPCCommands();
  */
 std::shared_ptr<CWallet> GetWalletForJSONRPCRequest(const JSONRPCRequest& request);
 
+std::string HelpRequiringPassphrase(CWallet*);
 void EnsureWalletIsUnlocked(const CWallet*);
 WalletContext& EnsureWalletContext(const util::Ref& context);
 LegacyScriptPubKeyMan& EnsureLegacyScriptPubKeyMan(CWallet& wallet, bool also_create = false);

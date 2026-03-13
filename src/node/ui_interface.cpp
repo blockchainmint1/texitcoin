@@ -22,6 +22,10 @@ struct UISignals {
     boost::signals2::signal<CClientUIInterface::NotifyBlockTipSig> NotifyBlockTip;
     boost::signals2::signal<CClientUIInterface::NotifyHeaderTipSig> NotifyHeaderTip;
     boost::signals2::signal<CClientUIInterface::BannedListChangedSig> BannedListChanged;
+    boost::signals2::signal<CClientUIInterface::OmniStateChangedSig> OmniStateChanged;
+    boost::signals2::signal<CClientUIInterface::OmniPendingChangedSig> OmniPendingChanged;
+    boost::signals2::signal<CClientUIInterface::OmniBalanceChangedSig> OmniBalanceChanged;
+    boost::signals2::signal<CClientUIInterface::OmniStateInvalidatedSig> OmniStateInvalidated;
 };
 static UISignals g_ui_signals;
 
@@ -41,6 +45,10 @@ ADD_SIGNALS_IMPL_WRAPPER(ShowProgress);
 ADD_SIGNALS_IMPL_WRAPPER(NotifyBlockTip);
 ADD_SIGNALS_IMPL_WRAPPER(NotifyHeaderTip);
 ADD_SIGNALS_IMPL_WRAPPER(BannedListChanged);
+ADD_SIGNALS_IMPL_WRAPPER(OmniStateChanged);
+ADD_SIGNALS_IMPL_WRAPPER(OmniPendingChanged);
+ADD_SIGNALS_IMPL_WRAPPER(OmniBalanceChanged);
+ADD_SIGNALS_IMPL_WRAPPER(OmniStateInvalidated);
 
 bool CClientUIInterface::ThreadSafeMessageBox(const bilingual_str& message, const std::string& caption, unsigned int style) { return g_ui_signals.ThreadSafeMessageBox(message, caption, style).value_or(false);}
 bool CClientUIInterface::ThreadSafeQuestion(const bilingual_str& message, const std::string& non_interactive_message, const std::string& caption, unsigned int style) { return g_ui_signals.ThreadSafeQuestion(message, non_interactive_message, caption, style).value_or(false);}
@@ -52,6 +60,10 @@ void CClientUIInterface::ShowProgress(const std::string& title, int nProgress, b
 void CClientUIInterface::NotifyBlockTip(SynchronizationState s, const CBlockIndex* i) { return g_ui_signals.NotifyBlockTip(s, i); }
 void CClientUIInterface::NotifyHeaderTip(SynchronizationState s, const CBlockIndex* i) { return g_ui_signals.NotifyHeaderTip(s, i); }
 void CClientUIInterface::BannedListChanged() { return g_ui_signals.BannedListChanged(); }
+void CClientUIInterface::OmniStateChanged() { return g_ui_signals.OmniStateChanged(); }
+void CClientUIInterface::OmniPendingChanged(bool b) { return g_ui_signals.OmniPendingChanged(b); }
+void CClientUIInterface::OmniBalanceChanged() { return g_ui_signals.OmniBalanceChanged(); }
+void CClientUIInterface::OmniStateInvalidated() { return g_ui_signals.OmniStateInvalidated(); }
 
 bool InitError(const bilingual_str& str)
 {

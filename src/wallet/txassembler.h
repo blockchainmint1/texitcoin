@@ -70,6 +70,8 @@ public:
         const CCoinControl& coin_control,
         const int nChangePosRequest,
         const bool sign,
+        bool omni,
+        CAmount min_fee,
         bilingual_str& errorOut
     );
 
@@ -78,13 +80,17 @@ private:
         const std::vector<CRecipient>& recipients,
         const CCoinControl& coin_control,
         const int nChangePosRequest,
-        const bool sign
+        const bool sign,
+        bool omni,
+        CAmount min_fee
     );
 
     void CreateTransaction_Locked(
         InProcessTx& new_tx,
         const int nChangePosRequest,
-        const bool sign
+        const bool sign,
+        bool omni,
+        CAmount min_fee
     );
 
     void VerifyRecipients(const std::vector<CRecipient>& recipients);
@@ -107,12 +113,14 @@ private:
     void InitCoinSelectionParams(InProcessTx& new_tx) const;
     bool AttemptCoinSelection(
         InProcessTx& new_tx,
-        const CAmount& nTargetValue
+        const CAmount& nTargetValue,
+        bool omni=false
     ) const;
     bool SelectCoins(
         InProcessTx& new_tx,
         const CAmount& nTargetValue,
-        CoinSelectionParams& coin_selection_params
+        CoinSelectionParams& coin_selection_params,
+        bool omni=false
     ) const;
 
     // Reduce fee to only the needed amount if possible. This

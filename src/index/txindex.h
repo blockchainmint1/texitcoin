@@ -39,6 +39,8 @@ public:
     // Destructor is declared because this class contains a unique_ptr to an incomplete type.
     virtual ~TxIndex() override;
 
+    int ReadTxPos(const uint256& txid) const;
+
     /// Look up a transaction by hash.
     ///
     /// @param[in]   tx_hash  The hash of the transaction to be returned.

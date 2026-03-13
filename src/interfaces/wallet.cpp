@@ -94,12 +94,15 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.credit = wtx.GetCredit(ISMINE_ALL);
     result.debit = wtx.GetDebit(ISMINE_ALL);
     result.change = wtx.GetChange();
+    result.available_credit = wtx.GetAvailableCredit();
     result.fee = wtx.GetFee(ISMINE_ALL);
     result.time = wtx.GetTxTime();
     result.value_map = wtx.mapValue;
     result.is_coinbase = wtx.IsCoinBase();
     result.is_hogex = wtx.IsHogEx();
     result.wtx_hash = wtx.GetHash();
+    result.hash_block = wtx.m_confirm.hashBlock;
+    result.order_pos = wtx.nOrderPos;
 
     //
     // Inputs
@@ -145,7 +148,7 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
 }
 
 //! Construct wallet tx status struct.
-WalletTxStatus MakeWalletTxStatus(CWallet& wallet, const CWalletTx& wtx)
+WalletTxStatus MakeWalletTxStatus(CWallet& wallet, const CWalletTx& wtx, bool directMemCheck = false)
 {
     WalletTxStatus result;
     result.block_height = wtx.m_confirm.block_height > 0 ? wtx.m_confirm.block_height : std::numeric_limits<int>::max();
@@ -154,7 +157,8 @@ WalletTxStatus MakeWalletTxStatus(CWallet& wallet, const CWalletTx& wtx)
     result.time_received = wtx.nTimeReceived;
     result.lock_time = wtx.tx->nLockTime;
     result.is_final = wallet.chain().checkFinalTx(*wtx.tx);
-    result.is_trusted = wtx.IsTrusted();
+    std::set<uint256> trusted_parents;
+    result.is_trusted = wallet.IsTrusted(wtx, trusted_parents, directMemCheck);
     result.is_abandoned = wtx.isAbandoned();
     result.is_coinbase = wtx.IsCoinBase();
     result.is_hogex = wtx.IsHogEx();
@@ -183,6 +187,9 @@ public:
     void abortRescan() override { m_wallet->AbortRescan(); }
     bool backupWallet(const std::string& filename) override { return m_wallet->BackupWallet(filename); }
     std::string getWalletName() override { return m_wallet->GetName(); }
+    // bool getPubKey(const CKeyID& address, CPubKey& pub_key) const override {
+    //     return m_wallet->GetPubKey(address, pub_key);
+    // }
     bool getNewDestination(const OutputType type, const std::string label, CTxDestination& dest) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -201,7 +208,7 @@ public:
 
         return nullptr;
     }
-    bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) override
+    bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) const override
     {
         std::unique_ptr<SigningProvider> provider = m_wallet->GetSolvingProvider(script);
         if (provider) {
@@ -213,6 +220,12 @@ public:
     {
         return m_wallet->SignMessage(message, pkhash, str_sig);
     }
+    CKeyID getKeyForDestination(const CTxDestination& dest) const override {
+        DestinationAddr newDest(dest);
+        std::unique_ptr<SigningProvider> provider = m_wallet->GetSolvingProvider(newDest);
+        return GetKeyForDestination(*provider, dest);
+    }
+    isminetype isMine(const CTxDestination& dest) override { return m_wallet->IsMine(dest); }
     bool isSpendable(const CTxDestination& dest) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -317,13 +330,15 @@ public:
         bool sign,
         int& change_pos,
         CAmount& fee,
-        bilingual_str& fail_reason) override
+        bilingual_str& fail_reason,
+        bool omni,
+        CAmount min_fee) override
     {
         LOCK(m_wallet->cs_wallet);
         CTransactionRef tx;
         FeeCalculation fee_calc_out;
         if (!m_wallet->CreateTransaction(recipients, tx, fee, change_pos,
-                fail_reason, coin_control, fee_calc_out, sign)) {
+                fail_reason, coin_control, fee_calc_out, sign, omni, min_fee)) {
             return {};
         }
         return tx;
@@ -349,6 +364,11 @@ public:
     bool transactionCanBeBumped(const uint256& txid) override
     {
         return feebumper::TransactionCanBeBumped(*m_wallet.get(), txid);
+    }
+    bool produceSignature(const BaseSignatureCreator& creator, const CScript& scriptPubKey, SignatureData& sigdata) override
+    {
+        std::unique_ptr<SigningProvider> provider = m_wallet->GetSolvingProvider(scriptPubKey);
+        return ProduceSignature(*provider, creator, scriptPubKey, sigdata);
     }
     bool createBumpTransaction(const uint256& txid,
         const CCoinControl& coin_control,
@@ -390,6 +410,17 @@ public:
     {
         LOCK(m_wallet->cs_wallet);
         return TxList(*m_wallet).ListAll(ISMINE_ALL);
+    }
+    std::vector<WalletTx> getWalletTxsDetails(std::map<uint256, WalletTxStatus>& tx_status) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        std::vector<WalletTx> result;
+        result.reserve(m_wallet->mapWallet.size());
+        for (const auto& entry : m_wallet->mapWallet) {
+            tx_status.emplace(entry.first, MakeWalletTxStatus(*m_wallet, entry.second, true));
+            result.emplace_back(MakeWalletTx(*m_wallet, entry.second));
+        }
+        return result;
     }
     WalletTx getWalletTxDetails(const uint256& txid,
         WalletTxStatus& tx_status,
@@ -447,6 +478,11 @@ public:
     {
         return m_wallet->GetAvailableBalance(&coin_control);
     }
+    bool isSpent(const uint256& hash, unsigned int n) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->IsSpent(hash, n);
+    }
     isminetype txinIsMine(const CTxInput& txin) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -489,6 +525,11 @@ public:
         }
         return result;
     }
+    void availableCoins(std::vector<COutputCoin> &vCoins, bool fOnlySafe, const CCoinControl *coinControl, const CAmount& nMinimumAmount) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        m_wallet->AvailableCoins(vCoins, fOnlySafe, coinControl, nMinimumAmount);
+    }
     std::vector<WalletTxOut> getCoins(const std::vector<OutputIndex>& outputs) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -516,6 +557,18 @@ public:
         FeeCalculation fee_calc;
         CAmount result;
         result = GetMinimumFee(*m_wallet, tx_bytes, mweb_weight, coin_control, &fee_calc);
+        if (returned_target) *returned_target = fee_calc.returnedTarget;
+        if (reason) *reason = fee_calc.reason;
+        return result;
+    }
+    CAmount getMinimumFee(unsigned int tx_bytes,
+        const CCoinControl& coin_control,
+        int* returned_target,
+        FeeReason* reason) override
+    {
+        FeeCalculation fee_calc;
+        CAmount result;
+        result = GetMinimumFee(*m_wallet, tx_bytes, 0, coin_control, &fee_calc);
         if (returned_target) *returned_target = fee_calc.returnedTarget;
         if (reason) *reason = fee_calc.reason;
         return result;

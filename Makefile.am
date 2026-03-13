@@ -44,6 +44,11 @@ OSX_INSTALLER_ICONS=$(top_srcdir)/src/qt/res/icons/bitcoin.icns
 OSX_PLIST=$(top_builddir)/share/qt/Info.plist #not installed
 OSX_QT_TRANSLATIONS = ar,bg,ca,cs,da,de,es,fa,fi,fr,gd,gl,he,hu,it,ja,ko,lt,lv,pl,pt,ru,sk,sl,sv,uk,zh_CN,zh_TW
 
+DIST_DOCS = $(wildcard doc/*.md) $(wildcard doc/release-notes/*.md) \
+	$(wildcard src/omnicore/*.md) \
+	$(wildcard src/omnicore/doc/*.md) \
+	$(wildcard src/omnicore/doc/release-notes/*.md)
+
 DIST_CONTRIB = \
 	       $(top_srcdir)/contrib/linearize/linearize-data.py \
 	       $(top_srcdir)/contrib/linearize/linearize-hashes.py

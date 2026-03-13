@@ -14,6 +14,7 @@
 #include <util/message.h>
 #include <util/ui_change_type.h>
 #include <wallet/txrecord.h>
+#include <wallet/wallet.h>
 
 #include <functional>
 #include <map>
@@ -24,9 +25,11 @@
 #include <utility>
 #include <vector>
 
+class BaseSignatureCreator;
 class CCoinControl;
 class CFeeRate;
 class CKey;
+class COutput;
 class CWallet;
 class ReserveDestination;
 enum class FeeReason;
@@ -34,6 +37,7 @@ enum class OutputType;
 enum class TransactionError;
 enum isminetype : unsigned int;
 struct CRecipient;
+struct SignatureData;
 struct PartiallySignedTransaction;
 struct WalletContext;
 struct bilingual_str;
@@ -92,7 +96,13 @@ public:
     virtual std::shared_ptr<ReserveDestination> reserveNewDestination(CTxDestination& dest) = 0;
 
     //! Get public key.
-    virtual bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) = 0;
+    virtual bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) const = 0;
+
+    //! Get key for destination.
+    virtual CKeyID getKeyForDestination(const CTxDestination& dest) const = 0;
+
+    //! Return whether address is in the wallet.
+    virtual isminetype isMine(const CTxDestination& dest) = 0;
 
     //! Sign message
     virtual SigningResult signMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) = 0;
@@ -151,7 +161,9 @@ public:
         bool sign,
         int& change_pos,
         CAmount& fee,
-        bilingual_str& fail_reason) = 0;
+        bilingual_str& fail_reason,
+        bool omni = false,
+        CAmount min_fee = 0) = 0;
 
     //! Commit transaction.
     virtual void commitTransaction(CTransactionRef tx,
@@ -167,6 +179,9 @@ public:
 
     //! Return whether transaction can be bumped.
     virtual bool transactionCanBeBumped(const uint256& txid) = 0;
+
+    /** Produce a script signature using a generic signature creator. */
+    virtual bool produceSignature(const BaseSignatureCreator& creator, const CScript& scriptPubKey, SignatureData& sigdata) = 0;
 
     //! Create bump transaction.
     virtual bool createBumpTransaction(const uint256& txid,
@@ -193,6 +208,9 @@ public:
 
     //! Get list of all wallet transactions.
     virtual std::vector<WalletTxRecord> getWalletTxs() = 0;
+
+    //! Get list of all wallet transactions and status.
+    virtual std::vector<WalletTx> getWalletTxsDetails(std::map<uint256, WalletTxStatus>& tx_status) = 0;
 
     //! Get transaction details.
     virtual WalletTx getWalletTxDetails(const uint256& txid,
@@ -221,6 +239,9 @@ public:
     //! Get available balance.
     virtual CAmount getAvailableBalance(const CCoinControl& coin_control) = 0;
 
+    //! Return whether the output is spent.
+    virtual bool isSpent(const uint256& hash, unsigned int n) = 0;
+
     //! Return whether transaction input belongs to wallet.
     virtual isminetype txinIsMine(const CTxInput& txin) = 0;
 
@@ -244,6 +265,9 @@ public:
     using CoinsList = std::map<CTxDestination, std::vector<std::tuple<OutputIndex, WalletTxOut>>>;
     virtual CoinsList listCoins() = 0;
 
+    //! Access CWallet AvailableCoins function
+    virtual void availableCoins(std::vector<COutputCoin> &vCoins, bool fOnlySafe, const CCoinControl *coinControl, const CAmount& nMinimumAmount) = 0;
+
     //! Return wallet transaction output information.
     virtual std::vector<WalletTxOut> getCoins(const std::vector<OutputIndex>& outputs) = 0;
 
@@ -253,6 +277,12 @@ public:
     //! Get minimum fee.
     virtual CAmount getMinimumFee(unsigned int tx_bytes,
         uint64_t mweb_weight,
+        const CCoinControl& coin_control,
+        int* returned_target,
+        FeeReason* reason) = 0;
+
+    //! Get minimum fee.
+    virtual CAmount getMinimumFee(unsigned int tx_bytes,
         const CCoinControl& coin_control,
         int* returned_target,
         FeeReason* reason) = 0;
@@ -405,6 +435,7 @@ struct WalletTx
     CAmount credit;
     CAmount debit;
     CAmount change;
+    CAmount available_credit;
     CAmount fee;
     int64_t time;
     std::map<std::string, std::string> value_map;
@@ -414,6 +445,8 @@ struct WalletTx
     std::vector<CTxInput> inputs;
     std::vector<WalletTxOut> outputs;
     std::vector<PegOutCoin> pegouts;
+    uint256 hash_block;
+    int64_t order_pos; // position in ordered transaction list
 };
 
 //! Updated transaction status.

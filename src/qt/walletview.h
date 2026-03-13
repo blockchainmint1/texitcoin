@@ -9,19 +9,26 @@
 
 #include <QStackedWidget>
 
+class BalancesDialog;
 class ClientModel;
 class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
+class SendMPDialog;
+class LookupSPDialog;
+class LookupTXDialog;
+class LookupAddressDialog;
 class SendCoinsRecipient;
 class TransactionView;
+class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QProgressDialog;
+class QTabWidget;
 QT_END_NAMESPACE
 
 /*
@@ -58,26 +65,47 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
+    BalancesDialog *balancesPage;
     QWidget *transactionsPage;
+    QWidget *smartPropertyPage;
+    QWidget *toolboxPage;
     ReceiveCoinsDialog *receiveCoinsPage;
-    SendCoinsDialog *sendCoinsPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
+    QWidget *sendCoinsPage;
+    SendCoinsDialog *sendCoinsTab;
+    SendMPDialog *sendMPTab;
+    LookupSPDialog *spLookupTab;
+    LookupTXDialog *txLookupTab;
+    LookupAddressDialog *addressLookupTab;
 
     TransactionView *transactionView;
+    TXHistoryDialog *mpTXTab;
+    QWidget *bitcoinTXTab;
 
     QProgressDialog* progressDialog{nullptr};
     const PlatformStyle *platformStyle;
 
+    QTabWidget *txTabHolder;
+    QTabWidget *sendTabHolder;
+
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to balances page */
+    void gotoBalancesPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
+    /** Switch specifically to omni tx history tab */
+    void gotoOmniHistoryTab();
+    /** Switch specifically to bitcoin tx history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to utility page */
+    void gotoToolboxPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

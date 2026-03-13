@@ -281,6 +281,16 @@ public:
         return CScript();
     }
 
+    CScript operator()(const CKeyID& keyID) const
+    {
+        return CScript() << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
+    }
+
+    CScript operator()(const CScriptID& scriptID) const
+    {
+        return CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
+    }
+
     CScript operator()(const PKHash& keyID) const
     {
         return CScript() << OP_DUP << OP_HASH160 << ToByteVector(keyID) << OP_EQUALVERIFY << OP_CHECKSIG;
@@ -357,3 +367,23 @@ bool IsPegInOutput(const CTxOutput& output)
     return false;
 }
 
+valtype DataVisitor::operator()(const CNoDestination& noDest) const { return valtype(); }
+valtype DataVisitor::operator()(const CKeyID& keyID) const { return valtype(keyID.begin(), keyID.end()); }
+valtype DataVisitor::operator()(const CScriptID& scriptID) const { return valtype(scriptID.begin(), scriptID.end()); }
+valtype DataVisitor::operator()(const PKHash& keyHash) const {
+    CKeyID keyID = ToKeyID(keyHash);
+    return valtype(keyID.begin(), keyID.end());
+}
+valtype DataVisitor::operator()(const ScriptHash& scriptHash) const
+{
+    CScriptID scriptID(scriptHash);
+    return valtype(scriptID.begin(), scriptID.end());
+}
+valtype DataVisitor::operator()(const StealthAddress& address) const
+{
+    CKeyID keyID = address.GetScanPubKey().GetID();
+    return valtype(keyID.begin(), keyID.end());
+}
+valtype DataVisitor::operator()(const WitnessV0ScriptHash& witnessScriptHash) const { return valtype(witnessScriptHash.begin(), witnessScriptHash.end()); }
+valtype DataVisitor::operator()(const WitnessV0KeyHash& witnessKeyHash) const { return valtype(witnessKeyHash.begin(), witnessKeyHash.end()); }
+valtype DataVisitor::operator()(const WitnessUnknown&) const { return valtype(); }

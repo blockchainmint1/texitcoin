@@ -32,6 +32,20 @@ public:
         return EncodeBase58Check(data);
     }
 
+    std::string operator()(const CKeyID& id) const
+    {
+        std::vector<unsigned char> data = m_params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
+        data.insert(data.end(), id.begin(), id.end());
+        return EncodeBase58Check(data);
+    }
+
+    std::string operator()(const CScriptID& id) const
+    {
+        std::vector<unsigned char> data = m_params.Base58Prefix(CChainParams::SCRIPT_ADDRESS2);
+        data.insert(data.end(), id.begin(), id.end());
+        return EncodeBase58Check(data);
+    }
+
     std::string operator()(const ScriptHash& id) const
     {
         std::vector<unsigned char> data = m_params.Base58Prefix(CChainParams::SCRIPT_ADDRESS2);
@@ -261,4 +275,43 @@ bool IsValidDestinationString(const std::string& str, const CChainParams& params
 bool IsValidDestinationString(const std::string& str)
 {
     return IsValidDestinationString(str, Params());
+}
+
+bool DecodeIndexKey(const std::string &str, uint256 &hashBytes, int &type)
+{
+    CTxDestination dest = DecodeDestination(str);
+    if (IsValidDestination(dest))
+    {
+        const CKeyID *keyID = boost::get<CKeyID>(&dest);
+        if(keyID)
+        {
+            memcpy(&hashBytes, keyID, 20);
+            type = 1;
+            return true;
+        }
+
+        const CScriptID *scriptID = boost::get<CScriptID>(&dest);
+        if(scriptID)
+        {
+            memcpy(&hashBytes, scriptID, 20);
+            type = 2;
+            return true;
+        }
+
+        const WitnessV0ScriptHash *witnessV0ScriptID = boost::get<WitnessV0ScriptHash>(&dest);
+        if (witnessV0ScriptID) {
+            memcpy(&hashBytes, witnessV0ScriptID, 32);
+            type = 3;
+            return true;
+        }
+
+        const WitnessV0KeyHash *witnessV0KeyID = boost::get<WitnessV0KeyHash>(&dest);
+        if (witnessV0KeyID) {
+            memcpy(&hashBytes, witnessV0KeyID, 20);
+            type = 4;
+            return true;
+        }
+    }
+
+    return false;
 }

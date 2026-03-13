@@ -39,6 +39,8 @@
 #include <util/translation.h>
 #include <validation.h>
 
+#include <omnicore/utilsui.h>
+
 #include <boost/signals2/connection.hpp>
 #include <memory>
 
@@ -445,6 +447,10 @@ int GuiMain(int argc, char* argv[])
     std::tie(argc, argv) = winArgs.get();
 #endif
     SetupEnvironment();
+
+    // Indicate UI mode
+    fQtMode = true;
+    
     util::ThreadSetInternalName("main");
 
     NodeContext node_context;

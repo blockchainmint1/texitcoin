@@ -22,7 +22,12 @@
 #include <set>
 #include <string>
 
+#include <omnicore/rpcmbstring.h> // SanitizeInvalidUTF8
+
 #include <boost/algorithm/string.hpp> // boost::trim
+
+/** Sanitize UTF-8 encoded strings in RPC responses */
+static bool fSanitizeResponse = true;
 
 /** WWW-Authenticate to present with 401 Unauthorized response */
 static const char* WWW_AUTH_HEADER_DATA = "Basic realm=\"jsonrpc\"";
@@ -208,6 +213,9 @@ static bool HTTPReq_JSONRPC(const util::Ref& context, HTTPRequest* req)
 
             // Send reply
             strReply = JSONRPCReply(result, NullUniValue, jreq.id);
+            if (fSanitizeResponse) {
+                strReply = mastercore::SanitizeInvalidUTF8(strReply);
+            }
 
         // array of requests
         } else if (valRequest.isArray()) {
@@ -289,6 +297,9 @@ bool StartHTTPRPC(const util::Ref& context)
     LogPrint(BCLog::RPC, "Starting HTTP RPC server\n");
     if (!InitRPCAuthentication())
         return false;
+        
+    // Sanitize non-UTF8 compliant RPC responses
+    fSanitizeResponse = gArgs.GetBoolArg("-rpcforceutf8", true);
 
     auto handle_rpc = [&context](HTTPRequest* req, const std::string&) { return HTTPReq_JSONRPC(context, req); };
     RegisterHTTPHandler("/", true, handle_rpc);

@@ -137,6 +137,8 @@ enum class TxoutType {
     WITNESS_UNKNOWN, //!< Only for Witness versions not already defined above
 };
 
+typedef TxoutType txnouttype;
+
 class CNoDestination {
 public:
     friend bool operator==(const CNoDestination &a, const CNoDestination &b) { return true; }
@@ -216,7 +218,7 @@ struct WitnessUnknown
  *  * StealthAddress: MWEB destination
  *  A CTxDestination is the internal data type encoded in a bitcoin address
  */
-typedef boost::variant<CNoDestination, PKHash, ScriptHash, WitnessV0ScriptHash, WitnessV0KeyHash, WitnessUnknown, StealthAddress> CTxDestination;
+typedef boost::variant<CNoDestination, PKHash, ScriptHash, WitnessV0ScriptHash, WitnessV0KeyHash, WitnessUnknown, StealthAddress, CScriptID, CKeyID> CTxDestination;
 
 /** Check whether a CTxDestination is a CNoDestination. */
 bool IsValidDestination(const CTxDestination& dest);
@@ -273,6 +275,19 @@ CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
 bool IsPegInOutput(const CTxOutput& output);
 
 CScript GetScriptForPegin(const mw::Hash& kernel_id);
+
+struct DataVisitor : public boost::static_visitor<std::vector<unsigned char>>
+{
+    std::vector<unsigned char> operator()(const CNoDestination& noDest) const;
+    std::vector<unsigned char> operator()(const CKeyID& keyID) const;
+    std::vector<unsigned char> operator()(const CScriptID& scriptID) const;
+    std::vector<unsigned char> operator()(const PKHash& keyHash) const;
+    std::vector<unsigned char> operator()(const ScriptHash& scriptHash) const;
+    std::vector<unsigned char> operator()(const StealthAddress& address) const;
+    std::vector<unsigned char> operator()(const WitnessV0ScriptHash& witnessScriptHash) const;
+    std::vector<unsigned char> operator()(const WitnessV0KeyHash& witnessKeyHash) const;
+    std::vector<unsigned char> operator()(const WitnessUnknown& witnessUnknown) const;
+};
 
 #include <script/address.h>
 

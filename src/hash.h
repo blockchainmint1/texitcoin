@@ -98,6 +98,16 @@ inline uint256 Hash(const T1& in1, const T2& in2) {
     return result;
 }
 
+/** Compute the 256-bit hash of an object. */
+template <typename T1>
+inline uint256 HashFunc(const T1 pbegin, const T1 pend)
+{
+    static const unsigned char pblank[1] = {};
+    uint256 result;
+    CHash256().Write(pbegin == pend ? pblank : (const unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0])).Finalize((unsigned char*)&result);
+    return result;
+}
+
 /** Compute the 256-bit hash of the concatenation of two objects. */
 template<typename T1, typename T2>
 inline uint256 Hash(const T1 p1begin, const T1 p1end,

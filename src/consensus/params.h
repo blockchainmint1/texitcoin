@@ -101,6 +101,12 @@ struct Params {
     bool signet_blocks{false};
     std::vector<uint8_t> signet_challenge;
 
+    /** Block height at which coinbase address enforcement and protocol upgrade become active */
+    int nCoinbaseAddressEnforcementHeight;
+
+    /** Block height at which the upgraded protocol version is required */
+    int nProtocolUpgradeHeight;
+
     /** Auxpow parameters */
     int32_t nAuxpowChainId;
     int nAuxpowStartHeight;

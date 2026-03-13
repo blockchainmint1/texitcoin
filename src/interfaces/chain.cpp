@@ -144,7 +144,7 @@ public:
 class ChainImpl : public Chain
 {
 public:
-    explicit ChainImpl(NodeContext& node) : m_node(node) {}
+    explicit ChainImpl(NodeContext& node): Chain(node) {}
     Optional<int> getHeight() override
     {
         LOCK(::cs_main);
@@ -408,7 +408,6 @@ public:
             notifications.transactionAddedToMempool(entry.GetSharedTx(), 0 /* mempool_sequence */);
         }
     }
-    NodeContext& m_node;
 };
 } // namespace
 

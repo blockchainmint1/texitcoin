@@ -19,7 +19,8 @@ enum class OutputType {
     LEGACY,
     P2SH_SEGWIT,
     BECH32,
-    MWEB
+    MWEB,
+    CHANGE_AUTO,
 };
 
 extern const std::array<OutputType, 4> OUTPUT_TYPES;

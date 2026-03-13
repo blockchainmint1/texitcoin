@@ -83,6 +83,8 @@ public:
 class Chain
 {
 public:
+    Chain(NodeContext& node) : m_node(node) {}
+
     virtual ~Chain() {}
 
     //! Get current chain height, not including genesis block (returns 0 if
@@ -285,6 +287,8 @@ public:
     //! to be prepared to handle this by ignoring notifications about unknown
     //! removed transactions and already added new transactions.
     virtual void requestMempoolTransactions(Notifications& notifications) = 0;
+
+    NodeContext& m_node;
 };
 
 //! Interface to let node manage chain clients (wallets, or maybe tools for

@@ -53,6 +53,16 @@ void SetMockTime(int64_t nMockTimeIn)
     nMockTime.store(nMockTimeIn, std::memory_order_relaxed);
 }
 
+void MilliSleep(int64_t n)
+{
+/**
+ * Boost's sleep_for was uninterruptible when backed by nanosleep from 1.50
+ * until fixed in 1.52. Use the deprecated sleep method for the broken case.
+ * See: https://svn.boost.org/trac/boost/ticket/7238
+ */
+    std::this_thread::sleep_for(std::chrono::milliseconds(n));
+}
+
 int64_t GetMockTime()
 {
     return nMockTime.load(std::memory_order_relaxed);

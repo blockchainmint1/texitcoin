@@ -224,6 +224,18 @@ public:
         std::function<void(SynchronizationState, interfaces::BlockTip tip, double verification_progress)>;
     virtual std::unique_ptr<Handler> handleNotifyHeaderTip(NotifyHeaderTipFn fn) = 0;
 
+    using OmniStateChangedFn = std::function<void()>;
+    virtual std::unique_ptr<Handler> handleOmniStateChanged(OmniStateChangedFn fn) = 0;
+
+    using OmniPendingChangedFn = std::function<void(bool pending)>;
+    virtual std::unique_ptr<Handler> handleOmniPendingChanged(OmniPendingChangedFn fn) = 0;
+
+    using OmniBalanceChangedFn = std::function<void()>;
+    virtual std::unique_ptr<Handler> handleOmniBalanceChanged(OmniBalanceChangedFn fn) = 0;
+
+    using OmniStateInvalidatedFn = std::function<void()>;
+    virtual std::unique_ptr<Handler> handleOmniStateInvalidated(OmniStateInvalidatedFn fn) = 0;
+
     //! Get and set internal node context. Useful for testing, but not
     //! accessible across processes.
     virtual NodeContext* context() { return nullptr; }

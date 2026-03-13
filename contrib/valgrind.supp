@@ -12,6 +12,13 @@
 #       --error-limit=no src/test/test_bitcoin
 #
 # Note that suppressions may depend on OS and/or library versions.
+#
+# To create suppressions for found issues, use the --gen-suppressions=all option:
+# $ valgrind --suppressions=contrib/valgrind.supp --leak-check=full \
+#       --show-leak-kinds=all --gen-suppressions=all --show-reachable=yes \
+#       --error-limit=no src/test/test_bitcoin
+#
+# Note that suppressions may depend on OS and/or library versions.
 # Tested on:
 # * aarch64 (Ubuntu 20.04 system libs, without gui)
 # * x86_64  (Ubuntu 18.04 system libs, without gui)
@@ -31,6 +38,14 @@
    Memcheck:Cond
    obj:*/libdb_cxx-*.so
    fun:__log_put
+}
+{
+   Suppress libdb warning
+   Memcheck:Param
+   pwrite64(buf)
+   fun:pwrite
+   fun:__os_io
+   obj:*/libdb_cxx-*.so
 }
 {
    Suppress libdb warning

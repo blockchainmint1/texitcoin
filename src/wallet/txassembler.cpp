@@ -9,16 +9,19 @@
 #include <util/translation.h>
 #include <wallet/fees.h>
 #include <wallet/reserve.h>
+#include <validation.h>
 
 Optional<AssembledTx> TxAssembler::AssembleTx(
     const std::vector<CRecipient>& recipients,
     const CCoinControl& coin_control,
     const int nChangePosRequest,
     const bool sign,
+    bool omni,
+    CAmount min_fee,
     bilingual_str& errorOut)
 {
     try {
-        return CreateTransaction(recipients, coin_control, nChangePosRequest, sign);
+        return CreateTransaction(recipients, coin_control, nChangePosRequest, sign, omni, min_fee);
     } catch (const CreateTxError& e) {
         m_wallet.WalletLogPrintf("%s\n", e.what());
         errorOut = e.GetError();
@@ -31,7 +34,9 @@ AssembledTx TxAssembler::CreateTransaction(
     const std::vector<CRecipient>& recipients,
     const CCoinControl& coin_control,
     const int nChangePosRequest,
-    const bool sign)
+    const bool sign,
+    bool omni,
+    CAmount min_fee)
 {
     VerifyRecipients(recipients);
 
@@ -52,7 +57,7 @@ AssembledTx TxAssembler::CreateTransaction(
 
     {
         LOCK(m_wallet.cs_wallet);
-        CreateTransaction_Locked(new_tx, nChangePosRequest, sign);
+        CreateTransaction_Locked(new_tx, nChangePosRequest, sign, omni, min_fee);
     }
 
     // Return the constructed transaction data.
@@ -101,7 +106,9 @@ AssembledTx TxAssembler::CreateTransaction(
 void TxAssembler::CreateTransaction_Locked(
     InProcessTx& new_tx,
     const int nChangePosRequest,
-    const bool sign)
+    const bool sign,
+    bool omni,
+    CAmount min_fee)
 {
     AssertLockHeld(m_wallet.cs_wallet);
 
@@ -131,7 +138,7 @@ void TxAssembler::CreateTransaction_Locked(
 
         // Choose coins to use
         if (pick_new_inputs) {
-            if (!AttemptCoinSelection(new_tx, amount_needed)) {
+            if (!AttemptCoinSelection(new_tx, amount_needed, omni)) {
                 throw CreateTxError(_("Insufficient funds"));
             }
 
@@ -379,7 +386,7 @@ void TxAssembler::InitCoinSelectionParams(InProcessTx& new_tx) const
     new_tx.coin_selection_params.m_subtract_fee_outputs = new_tx.subtract_fee_from_amount != 0; // If we are doing subtract fee from recipient, don't use effective values
 }
 
-bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTargetValue) const
+bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTargetValue, bool omni) const
 {
     new_tx.value_selected = 0;
     new_tx.selected_coins.clear();
@@ -408,7 +415,7 @@ bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTarg
         mweb_to_mweb.change_spend_size = 0;
         mweb_to_mweb.tx_noinputs_size = 0;
 
-        if (SelectCoins(new_tx, nTargetValue, mweb_to_mweb)) {
+        if (SelectCoins(new_tx, nTargetValue, mweb_to_mweb, omni)) {
             return true;
         }
 
@@ -421,7 +428,7 @@ bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTarg
         params_pegin.change_output_size = change_on_mweb ? 0 : new_tx.coin_selection_params.change_output_size;
         params_pegin.change_spend_size = change_on_mweb ? 0 : new_tx.coin_selection_params.change_spend_size;
 
-        if (SelectCoins(new_tx, nTargetValue, params_pegin)) {
+        if (SelectCoins(new_tx, nTargetValue, params_pegin, omni)) {
             return std::any_of(new_tx.selected_coins.cbegin(), new_tx.selected_coins.cend(), is_txc);
         }
     } else {
@@ -431,7 +438,7 @@ bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTarg
         mweb_to_mweb.mweb_change_output_weight = 0;
         mweb_to_mweb.mweb_nochange_weight = 0;
 
-        if (SelectCoins(new_tx, nTargetValue, mweb_to_mweb)) {
+        if (SelectCoins(new_tx, nTargetValue, mweb_to_mweb, omni)) {
             return true;
         }
 
@@ -449,7 +456,7 @@ bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTarg
         params_pegout.change_spend_size = 0;
         new_tx.tx.vout.clear();
 
-        if (SelectCoins(new_tx, nTargetValue, params_pegout)) {
+        if (SelectCoins(new_tx, nTargetValue, params_pegout, omni)) {
             return std::any_of(new_tx.selected_coins.cbegin(), new_tx.selected_coins.cend(), is_mweb);
         }
     }
@@ -457,10 +464,71 @@ bool TxAssembler::AttemptCoinSelection(InProcessTx& new_tx, const CAmount& nTarg
     return false;
 }
 
-bool TxAssembler::SelectCoins(InProcessTx& new_tx, const CAmount& nTargetValue, CoinSelectionParams& coin_selection_params) const
+bool TxAssembler::SelectCoins(InProcessTx& new_tx, const CAmount& nTargetValue, CoinSelectionParams& coin_selection_params, bool omni) const
 {
     new_tx.value_selected = 0;
     if (m_wallet.SelectCoins(new_tx.available_coins, nTargetValue, new_tx.selected_coins, new_tx.value_selected, new_tx.coin_control, coin_selection_params, new_tx.bnb_used)) {
+        if (omni) {
+            // Omni funded send. If vin amount minus the amount to select is less than the dust
+            // threshold then add the dust threshold to the amount to select and try again. This
+            // avoids dropping the "change" output which would otherwise be added to the fee and
+            // generating an Omni "send to self without change" error.
+            CAmount nValueToSelect = nTargetValue;
+            CAmount nAmount = new_tx.value_selected - nValueToSelect;
+            CFeeRate discard_rate = GetDiscardRate(m_wallet);
+
+            // Create change script that will be used if we need change
+            // TODO: pass in scriptChange instead of reservekey so
+            // change transaction isn't always pay-to-bitcoin-address
+            CScript scriptChange;
+
+            CCoinControl& coin_control = new_tx.coin_control;
+
+            // coin control: send change to custom address
+            if (!boost::get<CNoDestination>(&coin_control.destChange))
+            {
+                scriptChange = GetScriptForDestination(coin_control.destChange);
+            }
+            else
+            { // no coin control: send change to newly generated address
+                // Note: We use a new key here to keep it from being obvious which side is the change.
+                //  The drawback is that by not reusing a previous key, the change may be lost if a
+                //  backup is restored, if the backup doesn't have the new private key for the change.
+                //  If we reused the old key, it would be possible to add code to look for and
+                //  rediscover unknown transactions that were written with keys of ours to recover
+                //  post-backup change.
+
+                // Reserve a new key pair from key pool
+                if (!m_wallet.CanGetAddresses(true)) {
+                    // strFailReason = _("Can't generate a change-address key. No keys in the internal keypool and can't generate any keys.");
+                    return false;
+                }
+                bool ret;
+                CTxDestination dest;
+                ret = new_tx.reserve_dest->GetReservedDestination(dest, true);
+                if (!ret) {
+                    // strFailReason = _("Keypool ran out, please call keypoolrefill first");
+                    return false;
+                }
+
+                const OutputType change_type = m_wallet.TransactionChangeType(coin_control.m_change_type ? coin_control.m_change_type.value() : DEFAULT_CHANGE_TYPE, new_tx.recipients);
+
+                // LearnRelatedScripts(vchPubKey, change_type);
+                scriptChange = GetScriptForDestination(dest);
+            }
+
+            CAmount nDust = GetDustThreshold(CTxOut(nAmount, scriptChange), discard_rate);
+            int i = 0; // Stop after 5 iterations
+            while (nAmount < nDust && ++i < 6) {
+                nValueToSelect = new_tx.value_selected + (nDust - nAmount);
+                new_tx.value_selected = 0;
+                if (!m_wallet.SelectCoins(new_tx.available_coins, nTargetValue, new_tx.selected_coins, new_tx.value_selected, new_tx.coin_control, coin_selection_params, new_tx.bnb_used)) {
+                    // strFailReason = _("Insufficient funds");
+                    return false;
+                }
+                nAmount = new_tx.value_selected - nValueToSelect;
+            }
+        }
         return true;
     }
 

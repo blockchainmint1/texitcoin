@@ -125,6 +125,8 @@ private:
     GUIUtil::ClickableLabel* labelProxyIcon = nullptr;
     GUIUtil::ClickableLabel* connectionsControl = nullptr;
     GUIUtil::ClickableLabel* labelBlocksIcon = nullptr;
+    QLabel *labelOmniPendingIcon = nullptr;
+    QLabel *labelOmniPendingText = nullptr;
     QLabel* progressBarLabel = nullptr;
     GUIUtil::ClickableProgressBar* progressBar = nullptr;
     QProgressDialog* progressDialog = nullptr;
@@ -132,8 +134,11 @@ private:
     QMenuBar* appMenuBar = nullptr;
     QToolBar* appToolBar = nullptr;
     QAction* overviewAction = nullptr;
+    QAction* balancesAction = nullptr;
     QAction* historyAction = nullptr;
     QAction* quitAction = nullptr;
+    QAction* toolboxAction = nullptr;
+    QAction* exchangeAction = nullptr;
     QAction* sendCoinsAction = nullptr;
     QAction* sendCoinsMenuAction = nullptr;
     QAction* usedSendingAddressesAction = nullptr;
@@ -241,6 +246,9 @@ public Q_SLOTS:
     */
     void updateWalletStatus();
 
+    /** Set the Omni pending transactions label **/
+    void setOmniPendingStatus(bool pending);
+
 private:
     /** Set the encryption status as shown in the UI.
        @param[in] status            current encryption status
@@ -270,8 +278,16 @@ public Q_SLOTS:
 #ifdef ENABLE_WALLET
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to balances page */
+    void gotoBalancesPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch directly to Omni history tab */
+    void gotoOmniHistoryTab();
+    /** Switch directly to bitcoin history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to utility page */
+    void gotoToolboxPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
