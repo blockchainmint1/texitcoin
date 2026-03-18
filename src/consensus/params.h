@@ -109,9 +109,40 @@ struct Params {
 
     /** Auxpow parameters */
     int32_t nAuxpowChainId;
+    int32_t nAuxpowChainIdV2;
+    int nAuxpowChainIdV2Height;
     int nAuxpowStartHeight;
     bool fStrictChainId;
     int nLegacyBlocksBefore; // -1 for "always allow"
+
+    /**
+     * Return the expected auxpow chain ID for the given block height.
+     * Before nAuxpowChainIdV2Height, returns nAuxpowChainId (original).
+     * At or after nAuxpowChainIdV2Height, returns nAuxpowChainIdV2 (upgraded).
+     * @param nHeight Height of the block.
+     * @return The expected chain ID.
+     */
+    int32_t GetAuxpowChainId(int nHeight) const
+    {
+        if (nAuxpowChainIdV2Height > 0 && nHeight >= nAuxpowChainIdV2Height)
+            return nAuxpowChainIdV2;
+        return nAuxpowChainId;
+    }
+
+    /**
+     * Check whether the given chain ID is valid for any era.
+     * Used for context-free validation.
+     * @param nChainId The chain ID to check.
+     * @return True if it matches either the original or upgraded chain ID.
+     */
+    bool IsValidAuxpowChainId(int32_t nChainId) const
+    {
+        if (nChainId == nAuxpowChainId)
+            return true;
+        if (nAuxpowChainIdV2Height > 0 && nChainId == nAuxpowChainIdV2)
+            return true;
+        return false;
+    }
 
     /**
      * Check whether or not to allow legacy blocks at the given height.
