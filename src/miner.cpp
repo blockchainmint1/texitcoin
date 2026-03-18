@@ -130,9 +130,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nHeight = pindexPrev->nHeight + 1;
 
     LogPrintf("DEBUG[%s]: Before AuxPow\n", __func__);
-    const int32_t nChainId = chainparams.GetConsensus ().nAuxpowChainId;
+    const int32_t nChainId = chainparams.GetConsensus().GetAuxpowChainId(nHeight);
     LogPrintf("DEBUG[%s]: after AuxPow\n", __func__);
-    LogPrintf("DEBUG[%s]: nChainId = %d\n", __func__, nChainId);
+    LogPrintf("DEBUG[%s]: nChainId = %d (height=%d)\n", __func__, nChainId, nHeight);
     pblock->SetBaseVersion(VERSIONBITS_LAST_OLD_BLOCK_VERSION, nChainId);
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios

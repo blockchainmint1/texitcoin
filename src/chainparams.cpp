@@ -104,6 +104,8 @@ public:
         consensus.nProtocolUpgradeHeight = 267500;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
+        consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
+        consensus.nAuxpowChainIdV2Height = 273000;
         consensus.nAuxpowStartHeight = 73000;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = 73000;
@@ -215,6 +217,9 @@ public:
         consensus.nCoinbaseAddressEnforcementHeight = 27855;
         consensus.nProtocolUpgradeHeight = 27855;
 
+        consensus.nAuxpowChainId = 0x62;
+        consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
+        consensus.nAuxpowChainIdV2Height = 0; // Not active on testnet
         consensus.nAuxpowStartHeight = 20;
         consensus.fStrictChainId = false;
         consensus.nLegacyBlocksBefore = -1;
@@ -314,6 +319,8 @@ public:
         consensus.nProtocolUpgradeHeight = 8;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
+        consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
+        consensus.nAuxpowChainIdV2Height = 10; // Not active on regtest by default
         consensus.nAuxpowStartHeight = 30;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = 30;

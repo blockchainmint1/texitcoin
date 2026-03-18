@@ -3898,9 +3898,20 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "late-legacy-block", "legacy block after auxpow start");
         }
 
+    // Enforce the correct auxpow chain ID for the block height.
+    // Before nAuxpowChainIdV2Height, the original chain ID is required.
+    // At or after nAuxpowChainIdV2Height, the new chain ID is required.
+    if (!block.IsLegacy() && consensusParams.fStrictChainId) {
+        const int32_t nExpectedChainId = consensusParams.GetAuxpowChainId(nHeight);
+        if (block.GetChainId() != nExpectedChainId)
+            return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-auxpow-chainid",
+                strprintf("block chain ID mismatch (got %d, expected %d at height %d)",
+                    block.GetChainId(), nExpectedChainId, nHeight));
+    }
+
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
-
+    
     // Check against checkpoints
     if (fCheckpointsEnabled) {
         // Don't accept any forks from the main chain prior to last checkpoint.
