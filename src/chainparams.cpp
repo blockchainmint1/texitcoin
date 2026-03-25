@@ -80,7 +80,7 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60; // 40 blocks, ~2 hours
-        consensus.nDifficultyAdjustmentForkHeight = 284523;
+        consensus.nDifficultyAdjustmentForkHeight = 275520;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 3; // 75% of 4
@@ -107,7 +107,7 @@ public:
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
         consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
-        consensus.nAuxpowChainIdV2Height = 273000;
+        consensus.nAuxpowChainIdV2Height = 275520;
         consensus.nAuxpowStartHeight = 73000;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = 73000;
