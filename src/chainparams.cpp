@@ -190,7 +190,7 @@ public:
         consensus.BIP65Height = 76; 
         consensus.BIP66Height = 76; 
         consensus.CSVHeight = 6048; // 00000000025e930139bac5c6c31a403776da130831ab85be56578f3fa75369bb
-        consensus.SegwitHeight = 6048; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
+        consensus.SegwitHeight = 5622; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
         consensus.MinBIP9WarningHeight = 8064; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  12 * 60;
@@ -206,8 +206,8 @@ public:
 
         // Deployment of Taproot (BIPs 340-342)
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartHeight = 2225664; // March 2022
-        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeoutHeight = 2435328; 
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
 
         // Deployment of MWEB (LIP-0002, LIP-0003, and LIP-0004)
         consensus.vDeployments[Consensus::DEPLOYMENT_MWEB].bit = 4;
@@ -217,8 +217,8 @@ public:
         consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000004260a1758f04aa");
         consensus.defaultAssumeValid = uint256S("0xf32a854e54d83ba530ea5a8e8c27a3d50ac8064698095f4fe3bab791a2bf7ac6"); 
 
-        consensus.nCoinbaseAddressEnforcementHeight = 27855;
-        consensus.nProtocolUpgradeHeight = 27855;
+        consensus.nCoinbaseAddressEnforcementHeight = 57750;
+        consensus.nProtocolUpgradeHeight = 57750;
 
         consensus.nAuxpowChainId = 0x62;
         consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
