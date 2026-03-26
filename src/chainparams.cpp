@@ -79,6 +79,8 @@ public:
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
+        consensus.nPowTargetTimespanV2 = 40 * 3 * 60; // 40 blocks, ~2 hours
+        consensus.nDifficultyAdjustmentForkHeight = 275520;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 3; // 75% of 4
@@ -104,6 +106,8 @@ public:
         consensus.nProtocolUpgradeHeight = 267500;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
+        consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
+        consensus.nAuxpowChainIdV2Height = 275520;
         consensus.nAuxpowStartHeight = 73000;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = 73000;
@@ -191,9 +195,10 @@ public:
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
+        consensus.nPowTargetTimespanV2 = 40 * 3 * 60;
+        consensus.nDifficultyAdjustmentForkHeight = 0; // always use V2 on testnet
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
@@ -215,6 +220,9 @@ public:
         consensus.nCoinbaseAddressEnforcementHeight = 27855;
         consensus.nProtocolUpgradeHeight = 27855;
 
+        consensus.nAuxpowChainId = 0x62;
+        consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
+        consensus.nAuxpowChainIdV2Height = 0; // Not active on testnet
         consensus.nAuxpowStartHeight = 20;
         consensus.fStrictChainId = false;
         consensus.nLegacyBlocksBefore = -1;
@@ -289,6 +297,8 @@ public:
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
+        consensus.nPowTargetTimespanV2 = 40 * 3 * 60;
+        consensus.nDifficultyAdjustmentForkHeight = 0; // disabled on regtest
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
@@ -314,6 +324,8 @@ public:
         consensus.nProtocolUpgradeHeight = 8;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
+        consensus.nAuxpowChainIdV2 = 0x1b39; // 6969 - New chain ID
+        consensus.nAuxpowChainIdV2Height = 10; // Not active on regtest by default
         consensus.nAuxpowStartHeight = 30;
         consensus.fStrictChainId = true;
         consensus.nLegacyBlocksBefore = 30;
