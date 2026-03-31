@@ -102,7 +102,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000200020");
         consensus.defaultAssumeValid = uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca"); 
 
-        consensus.nCoinbaseAddressEnforcementHeight = 267500;
+        consensus.nCoinbaseAddressEnforcementHeight = 277960;
         consensus.nProtocolUpgradeHeight = 267500;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
@@ -159,6 +159,9 @@ public:
         checkpointData = {
             {
                 {  0, uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca")},
+                { 73000, uint256S("0x1d5edc7fb63949849033f51b474479b671d73e2c2a13b8e0b2560006b9dcc716")},
+                { 267500, uint256S("0x4ec4346c8403a4a36dcab87fcf90711ceacedd33b32c5321eb98985a6ba2b10d")},
+                { 275520, uint256S("0x329ddcf8de1cc797338508069d49b4aa6729ec34b46a5c17c1944c02ec341b72")}
             }
         };
 
