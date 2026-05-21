@@ -6,7 +6,7 @@ $(package)_sha256_hash=229393ab2bf0dc94694f21836846b424f3532585bac3468738b7bf752
 $(package)_patches=0001-fix-windows-getaddrinfo.patch
 
 define $(package)_preprocess_cmds
-   patch -p1 < $($(package)_patch_dir)/0001-fix-windows-getaddrinfo.patch && \
+  patch -N -p1 < $($(package)_patch_dir)/0001-fix-windows-getaddrinfo.patch && \
   ./autogen.sh
 endef
 

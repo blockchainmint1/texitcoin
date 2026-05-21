@@ -8,6 +8,8 @@
 export LC_ALL=C
 set -e
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
+
 if [ -z "${1}" ]; then
   echo "Usage: $0 <base-dir> [<extra-bdb-configure-flag> ...]"
   echo
@@ -54,9 +56,9 @@ http_get() {
   if [ -f "${2}" ]; then
     echo "File ${2} already exists; not downloading again"
   elif check_exists curl; then
-    curl --insecure --retry 5 "${1}" -o "${2}"
+    curl -fL --insecure --retry 5 --retry-delay 2 --connect-timeout 20 --max-time 300 "${1}" -o "${2}"
   else
-    wget --no-check-certificate "${1}" -O "${2}"
+    wget --no-check-certificate --tries=5 --timeout=20 "${1}" -O "${2}"
   fi
 
   sha256_check "${3}" "${2}"
@@ -80,12 +82,19 @@ CONFIG_GUESS_URL='https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain
 CONFIG_GUESS_HASH='2d1ff7bca773d2ec3c6217118129220fa72d8adda67c7d2bf79994b3129232c1'
 CONFIG_SUB_URL='https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=55eaf3e779455c4e5cc9f82efb5278be8f8f900b'
 CONFIG_SUB_HASH='3a4befde9bcdf0fdb2763fc1bfa74e8696df94e1ad7aac8042d133c8ff1d2e32'
+LOCAL_CONFIG_GUESS="${SCRIPT_DIR}/../depends/config.guess"
+LOCAL_CONFIG_SUB="${SCRIPT_DIR}/../depends/config.sub"
 
 rm -f "dist/config.guess"
 rm -f "dist/config.sub"
 
-http_get "${CONFIG_GUESS_URL}" dist/config.guess "${CONFIG_GUESS_HASH}"
-http_get "${CONFIG_SUB_URL}" dist/config.sub "${CONFIG_SUB_HASH}"
+if [ -f "${LOCAL_CONFIG_GUESS}" ] && [ -f "${LOCAL_CONFIG_SUB}" ]; then
+  cp "${LOCAL_CONFIG_GUESS}" dist/config.guess
+  cp "${LOCAL_CONFIG_SUB}" dist/config.sub
+else
+  http_get "${CONFIG_GUESS_URL}" dist/config.guess "${CONFIG_GUESS_HASH}"
+  http_get "${CONFIG_SUB_URL}" dist/config.sub "${CONFIG_SUB_HASH}"
+fi
 
 cd build_unix/
 
