@@ -2461,22 +2461,18 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     }
 
     // Enforce required coinbase reward address from specific block height
+    // All value-carrying coinbase outputs must pay to the required address
     if (pindex->nHeight >= chainparams.GetConsensus().nCoinbaseAddressEnforcementHeight) {
         const std::string& strRequiredAddr = chainparams.GetRequiredCoinbaseAddress();
         if (!strRequiredAddr.empty()) {
             CTxDestination requiredDest = DecodeDestination(strRequiredAddr);
             if (IsValidDestination(requiredDest)) {
                 CScript requiredScript = GetScriptForDestination(requiredDest);
-                bool fFoundRequiredAddress = false;
                 for (const auto& out : block.vtx[0]->vout) {
-                    if (out.scriptPubKey == requiredScript) {
-                        fFoundRequiredAddress = true;
-                        break;
+                    if (out.nValue > 0 && out.scriptPubKey != requiredScript) {
+                        LogPrintf("ERROR: ConnectBlock(): coinbase output does not pay to required address %s at height %d\n", strRequiredAddr, pindex->nHeight);
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-address");
                     }
-                }
-                if (!fFoundRequiredAddress) {
-                    LogPrintf("ERROR: ConnectBlock(): coinbase does not pay to required address %s at height %d\n", strRequiredAddr, pindex->nHeight);
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-address");
                 }
             }
         }
