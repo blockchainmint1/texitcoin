@@ -286,7 +286,7 @@ public:
         painter->setPen(foreground);
         QString amountText;
         if (!omniOverride) {
-            amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
+            amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::SeparatorStyle::ALWAYS);
         } else {
             amountText = omniAmountStr;
         }
