@@ -103,6 +103,7 @@ public:
         consensus.defaultAssumeValid = uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca"); 
 
         consensus.nCoinbaseAddressEnforcementHeight = 301770;
+        consensus.nNewCoinbaseAddressEnforcementHeight = 309877;
         consensus.nProtocolUpgradeHeight = 267500;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
@@ -153,6 +154,7 @@ public:
         mweb_hrp = "txcmweb";
 
         strRequiredCoinbaseAddress = "TdaxfTr1sBjoPNbZLSWpaXxSc6bxJsNyc2";
+        strNewRequiredCoinbaseAddress = "TjfL5Kq58h8VaJMWRkHi2T5wxA5eV6HVwB";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
@@ -221,6 +223,7 @@ public:
         consensus.defaultAssumeValid = uint256S("0xf32a854e54d83ba530ea5a8e8c27a3d50ac8064698095f4fe3bab791a2bf7ac6"); 
 
         consensus.nCoinbaseAddressEnforcementHeight = 27855;
+        consensus.nNewCoinbaseAddressEnforcementHeight = 2147483647;
         consensus.nProtocolUpgradeHeight = 27855;
 
         consensus.nAuxpowChainId = 0x62;
@@ -258,6 +261,7 @@ public:
         mweb_hrp = "tmweb";
 
         strRequiredCoinbaseAddress = "XizopXfH2n9NgfvTLdPtu747WuF2Zk5a5c";
+        strNewRequiredCoinbaseAddress = "";
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = false;
@@ -324,6 +328,7 @@ public:
         consensus.defaultAssumeValid = uint256{};
 
         consensus.nCoinbaseAddressEnforcementHeight = 8;
+        consensus.nNewCoinbaseAddressEnforcementHeight = 2147483647;
         consensus.nProtocolUpgradeHeight = 8;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
@@ -380,6 +385,7 @@ public:
         mweb_hrp = "tmweb";
 
         strRequiredCoinbaseAddress = "rtxc1qfanv48ncppfuxzec25kgu0gr6xv97d7a5g9yv5";
+        strNewRequiredCoinbaseAddress = "";
     }
 
     /**

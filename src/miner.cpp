@@ -5,6 +5,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <miner.h>
+#include <script/standard.h>
+#include <key_io.h>
 
 #include <amount.h>
 #include <chain.h>
@@ -183,7 +185,16 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+    CScript coinbaseScript = scriptPubKeyIn;
+    const std::string requiredCoinbaseAddress = chainparams.GetRequiredCoinbaseAddress(nHeight);
+    if (!requiredCoinbaseAddress.empty()) {
+        CTxDestination requiredDestination = DecodeDestination(requiredCoinbaseAddress);
+        if (!IsValidDestination(requiredDestination)) {
+            throw std::runtime_error("Invalid required coinbase address");
+        }
+        coinbaseScript = GetScriptForDestination(requiredDestination);
+    }
+    coinbaseTx.vout[0].scriptPubKey = coinbaseScript;
     coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));

@@ -2462,8 +2462,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // Enforce required coinbase reward address from specific block height
     // All value-carrying coinbase outputs must pay to the required address
-    if (pindex->nHeight >= chainparams.GetConsensus().nCoinbaseAddressEnforcementHeight) {
-        const std::string& strRequiredAddr = chainparams.GetRequiredCoinbaseAddress();
+    if (!chainparams.GetRequiredCoinbaseAddress(pindex->nHeight).empty()) {
+        const std::string strRequiredAddr = chainparams.GetRequiredCoinbaseAddress(pindex->nHeight);
         if (!strRequiredAddr.empty()) {
             CTxDestination requiredDest = DecodeDestination(strRequiredAddr);
             if (IsValidDestination(requiredDest)) {
