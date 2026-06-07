@@ -2553,6 +2553,9 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
 
     std::string authKeyStr;
     int authKeyLength;
+    const int nNodeAuthOptionalHeight = m_chainparams.GetConsensus().nNewCoinbaseAddressEnforcementHeight;
+    const int nCurrentHeight = WITH_LOCK(cs_main, return ::ChainActive().Height(););
+    const bool fRequireNodeAuth = nCurrentHeight < nNodeAuthOptionalHeight;
     std::string texitKeyPath;
     EVP_PKEY* texitKey;
 
@@ -2695,16 +2698,22 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
                 }
 #endif
             } else {
-                LogPrintf("Failed to verify the node auth key.\n");
-                pfrom.fDisconnect = true;
-                return;
+                if (fRequireNodeAuth) {
+                    LogPrintf("Failed to verify the node auth key before activation height %d.\n", nNodeAuthOptionalHeight);
+                    pfrom.fDisconnect = true;
+                    return;
+                }
+                LogPrintf("Failed to verify the node auth key, but node-auth is optional after activation height %d; accepting peer.\n", nNodeAuthOptionalHeight);
             }
 
             EVP_PKEY_free(texitKey);
         } else {
-            LogPrintf("Did not receive node authentication key from %s, disconnecting\n", pfrom.addr.ToString());
-            pfrom.fDisconnect = true;
-            return;
+            if (fRequireNodeAuth) {
+                LogPrintf("Did not receive node authentication key from %s before activation height %d, disconnecting\n", pfrom.addr.ToString(), nNodeAuthOptionalHeight);
+                pfrom.fDisconnect = true;
+                return;
+            }
+            LogPrintf("Did not receive node authentication key from %s, but node-auth is optional after activation height %d; accepting peer\n", pfrom.addr.ToString(), nNodeAuthOptionalHeight);
         }
 
         // Disconnect if we connected to ourself
