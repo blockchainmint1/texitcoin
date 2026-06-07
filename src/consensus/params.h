@@ -114,6 +114,7 @@ struct Params {
     /** Block height at which coinbase address enforcement and protocol upgrade become active */
     int nCoinbaseAddressEnforcementHeight;
     int nNewCoinbaseAddressEnforcementHeight;
+    int nNodeAuthOptionalHeight;
 
     /** Block height at which the upgraded protocol version is required */
     int nProtocolUpgradeHeight;

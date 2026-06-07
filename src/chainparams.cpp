@@ -104,6 +104,7 @@ public:
 
         consensus.nCoinbaseAddressEnforcementHeight = 301770;
         consensus.nNewCoinbaseAddressEnforcementHeight = 309877;
+        consensus.nNodeAuthOptionalHeight = 309877;
         consensus.nProtocolUpgradeHeight = 267500;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!
@@ -224,6 +225,7 @@ public:
 
         consensus.nCoinbaseAddressEnforcementHeight = 27855;
         consensus.nNewCoinbaseAddressEnforcementHeight = 2147483647;
+        consensus.nNodeAuthOptionalHeight = 2147483647;
         consensus.nProtocolUpgradeHeight = 27855;
 
         consensus.nAuxpowChainId = 0x62;
@@ -329,6 +331,7 @@ public:
 
         consensus.nCoinbaseAddressEnforcementHeight = 8;
         consensus.nNewCoinbaseAddressEnforcementHeight = 2147483647;
+        consensus.nNodeAuthOptionalHeight = 2147483647;
         consensus.nProtocolUpgradeHeight = 8;
 
         consensus.nAuxpowChainId = 0x62; // 98 - Josh Wise!

@@ -2553,7 +2553,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
 
     std::string authKeyStr;
     int authKeyLength;
-    const int nNodeAuthOptionalHeight = m_chainparams.GetConsensus().nNewCoinbaseAddressEnforcementHeight;
+    const int nNodeAuthOptionalHeight = m_chainparams.GetConsensus().nNodeAuthOptionalHeight;
     const int nCurrentHeight = WITH_LOCK(cs_main, return ::ChainActive().Height(););
     const bool fRequireNodeAuth = nCurrentHeight < nNodeAuthOptionalHeight;
     std::string texitKeyPath;
@@ -2700,6 +2700,7 @@ void PeerManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDat
             } else {
                 if (fRequireNodeAuth) {
                     LogPrintf("Failed to verify the node auth key before activation height %d.\n", nNodeAuthOptionalHeight);
+                    EVP_PKEY_free(texitKey);
                     pfrom.fDisconnect = true;
                     return;
                 }
