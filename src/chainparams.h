@@ -91,7 +91,18 @@ public:
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     const std::string& Bech32HRP() const { return bech32_hrp; }
     const std::string& MWEB_HRP() const { return mweb_hrp; }
-    const std::string& GetRequiredCoinbaseAddress() const { return strRequiredCoinbaseAddress; }
+    std::string GetRequiredCoinbaseAddress(int nHeight) const
+    {
+        if (nHeight >= consensus.nNewCoinbaseAddressEnforcementHeight && !strNewRequiredCoinbaseAddress.empty()) {
+            return strNewRequiredCoinbaseAddress;
+        }
+
+        if (nHeight >= consensus.nCoinbaseAddressEnforcementHeight && !strRequiredCoinbaseAddress.empty()) {
+            return strRequiredCoinbaseAddress;
+        }
+
+        return "";
+    }
     const std::vector<uint8_t>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
     const ChainTxData& TxData() const { return chainTxData; }
@@ -109,6 +120,7 @@ protected:
     std::string bech32_hrp;
     std::string mweb_hrp;
     std::string strRequiredCoinbaseAddress;
+    std::string strNewRequiredCoinbaseAddress;
     std::string strNetworkID;
     CBlock genesis;
     std::vector<uint8_t> vFixedSeeds;

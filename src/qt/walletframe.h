@@ -79,7 +79,7 @@ public Q_SLOTS:
     /** Switch directory to bitcoin tx history tab */
     void gotoBitcoinHistoryTab();
     /** Switch to utility page */
-    void gotoToolboxPage();walletviewcpp
+    void gotoToolboxPage();
     
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
