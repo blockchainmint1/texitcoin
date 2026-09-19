@@ -48,6 +48,7 @@ std::string mastercore::strTransactionType(uint16_t txType)
         case MSC_TYPE_RESTRICTED_SEND: return "Restricted Send";
         case MSC_TYPE_SEND_TO_OWNERS: return "Send To Owners";
         case MSC_TYPE_SEND_ALL: return "Send All";
+        case MSC_TYPE_SEND_TO_MANY: return "Send To Many";
         case MSC_TYPE_SEND_NONFUNGIBLE: return "Unique Send";
         case MSC_TYPE_SAVINGS_MARK: return "Savings";
         case MSC_TYPE_SAVINGS_COMPROMISED: return "Savings COMPROMISED";
@@ -119,6 +120,9 @@ bool CMPTransaction::interpret_Transaction()
 
         case MSC_TYPE_SEND_ALL:
             return interpret_SendAll();
+
+        case MSC_TYPE_SEND_TO_MANY:
+            return interpret_SendToMany();
 
         case MSC_TYPE_SEND_NONFUNGIBLE:
             return interpret_SendNonFungible();
@@ -278,6 +282,69 @@ bool CMPTransaction::interpret_SendAll()
     }
 
     return true;
+}
+
+
+/** Tx 7 */
+bool CMPTransaction::interpret_SendToMany()
+{
+    // minimum case without any recipients, still needs the property id
+    if (pkt_size < 9) {
+        return false;
+    }
+
+    memcpy(&property, &pkt[4], 4);
+    SwapByteOrder32(property);
+    memcpy(&numberOfSTMReceivers, &pkt[8], 1);
+
+    // check the total size for all receivers
+    if (pkt_size < (9 + (numberOfSTMReceivers * (1 + 8)))) {
+        return false;
+    }
+
+    size_t pos = 9;
+    for (uint8_t i = 0; i < numberOfSTMReceivers; ++i) {
+        uint8_t outputN = 0;
+        memcpy(&outputN, &pkt[pos], 1);
+        uint64_t valueN = 0;
+        memcpy(&valueN, &pkt[pos + 1], 8);
+        SwapByteOrder64(valueN);
+        outputValuesForSTM.push_back(std::make_tuple(outputN, valueN));
+        nValue += valueN;
+        pos = pos + 9;
+
+        if ((!rpcOnly && msc_debug_packets) || msc_debug_packets_readonly) {
+            PrintToLog("\t         output %d: %s\n", outputN, FormatMP(property, valueN));
+        }
+    }
+    nNewValue = nValue;
+
+    if ((!rpcOnly && msc_debug_packets) || msc_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t       receivers: %d\n", (int)numberOfSTMReceivers);
+    }
+
+    return true;
+}
+
+/** Registers an output as potential Send-To-Many destination. */
+void CMPTransaction::addValidStmAddress(size_t output, const std::string& address)
+{
+    if (output > std::numeric_limits<uint8_t>::max()) {
+        return;
+    }
+    validOutputAddressesForSTM[static_cast<uint8_t>(output)] = address;
+}
+
+/** Returns an output address, if it's considered a valid Omni destination. */
+bool CMPTransaction::getValidStmAddressAt(uint8_t output, std::string& addressOut)
+{
+    if (validOutputAddressesForSTM.find(output) != validOutputAddressesForSTM.end()) {
+        addressOut = validOutputAddressesForSTM[output];
+        return true;
+    }
+    addressOut.clear();
+    return false;
 }
 
 /** Tx 5 */
@@ -858,6 +925,9 @@ int CMPTransaction::interpretPacket()
         case MSC_TYPE_SEND_ALL:
             return logicMath_SendAll();
 
+        case MSC_TYPE_SEND_TO_MANY:
+            return logicMath_SendToMany();
+
         case MSC_TYPE_SEND_NONFUNGIBLE:
             return logicMath_SendNonFungible();
 
@@ -1170,6 +1240,95 @@ int CMPTransaction::logicMath_SendToOwners()
 }
 
 /** Tx 4 */
+/** Tx 7 */
+int CMPTransaction::logicMath_SendToMany()
+{
+    if (!IsTransactionTypeAllowed(block, property, type, version)) {
+        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
+                __func__,
+                type,
+                version,
+                property,
+                block);
+        return (PKT_ERROR_SEND_MANY -22);
+    }
+
+    if (isPropertyNonFungible(property)) {
+        PrintToLog("%s(): rejected: property %d is of type non-fungible\n", __func__, property);
+        return (PKT_ERROR_SEND_MANY -27);
+    }
+
+    if (nValue <= 0 || MAX_INT_8_BYTES < nValue) {
+        PrintToLog("%s(): rejected: value out of range or zero: %d\n", __func__, nValue);
+        return (PKT_ERROR_SEND_MANY -23);
+    }
+
+    if (!IsPropertyIdValid(property)) {
+        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
+        return (PKT_ERROR_SEND_MANY -24);
+    }
+
+    int64_t nBalance = GetTokenBalance(sender, property, BALANCE);
+    if (nBalance < (int64_t) nValue) {
+        PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
+                __func__,
+                sender,
+                property,
+                FormatMP(property, nBalance),
+                FormatMP(property, nValue));
+        return (PKT_ERROR_SEND_MANY -25);
+    }
+
+    // ------------------------------------------
+    // First pass: validate every single receiver, before any money is moved.
+
+    uint64_t totalAmount = 0;
+    uint8_t validReceivers = 0;
+
+    for (const std::tuple<uint8_t, uint64_t>& entry : outputValuesForSTM) {
+        uint8_t output = std::get<0>(entry);
+        uint64_t amount = std::get<1>(entry);
+
+        std::string address;
+        if (!getValidStmAddressAt(output, address)) {
+            PrintToLog("%s(): rejected: output %d is not a valid destination\n", __func__, output);
+            return (PKT_ERROR_SEND_MANY -26);
+        }
+        if (address.empty()) {
+            PrintToLog("%s(): rejected: receiver at output %d is empty\n", __func__, output);
+            return (PKT_ERROR_SEND_MANY -27);
+        }
+
+        totalAmount += amount;
+        validReceivers += 1;
+    }
+
+    if (totalAmount != nValue) {
+        PrintToLog("%s(): rejected: sum of outputs %d does not match total amount %d\n", __func__, totalAmount, nValue);
+        return (PKT_ERROR_SEND_MANY -28);
+    }
+
+    if (validReceivers != numberOfSTMReceivers) {
+        PrintToLog("%s(): rejected: number of valid receivers %d does not match %d\n", __func__, validReceivers, numberOfSTMReceivers);
+        return (PKT_ERROR_SEND_MANY -29);
+    }
+
+    // ------------------------------------------
+    // Second pass: move the money.
+
+    for (const std::tuple<uint8_t, uint64_t>& entry : outputValuesForSTM) {
+        uint8_t output = std::get<0>(entry);
+        uint64_t amount = std::get<1>(entry);
+
+        std::string receiverAddress;
+        assert(getValidStmAddressAt(output, receiverAddress));
+        assert(update_tally_map(sender, property, -amount, BALANCE));
+        assert(update_tally_map(receiverAddress, property, amount, BALANCE));
+    }
+
+    return 0;
+}
+
 int CMPTransaction::logicMath_SendAll()
 {
     if (!IsTransactionTypeAllowed(block, ecosystem, type, version)) {

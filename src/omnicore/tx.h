@@ -13,7 +13,9 @@ class CTransaction;
 #include <stdint.h>
 #include <string.h>
 
+#include <map>
 #include <string>
+#include <tuple>
 
 using mastercore::strTransactionType;
 
@@ -76,6 +78,11 @@ private:
     uint64_t min_fee;
     unsigned char subaction;
 
+    // Send To Many
+    uint8_t numberOfSTMReceivers;
+    std::vector<std::tuple<uint8_t, uint64_t>> outputValuesForSTM;
+    std::map<uint8_t, std::string> validOutputAddressesForSTM;
+
     // Unique Send
     uint64_t nonfungible_token_start;
     uint64_t nonfungible_token_end;
@@ -105,6 +112,7 @@ private:
     bool interpret_SimpleSend();
     bool interpret_SendToOwners();
     bool interpret_SendAll();
+    bool interpret_SendToMany();
     bool interpret_SendNonFungible();
     bool interpret_TradeOffer();
     bool interpret_AcceptOfferBTC();
@@ -131,6 +139,7 @@ private:
     int logicMath_SimpleSend(uint256& blockHash);
     int logicMath_SendToOwners();
     int logicMath_SendAll();
+    int logicMath_SendToMany();
     int logicMath_SendNonFungible();
     int logicMath_TradeOffer();
     int logicMath_AcceptOffer_BTC();
@@ -181,6 +190,14 @@ public:
     std::string getPayloadData() const { return HexStr(pkt + 4 /* skip version and type */, pkt + pkt_size); }
     uint64_t getAmount() const { return nValue; }
     uint64_t getNewAmount() const { return nNewValue; }
+    uint8_t getStmNumberOfReceivers() const { return numberOfSTMReceivers; }
+    std::vector<std::tuple<uint8_t, uint64_t>> getStmOutputValues() const { return outputValuesForSTM; }
+
+    /** Registers an output as potential Send-To-Many destination. */
+    void addValidStmAddress(size_t output, const std::string& address);
+
+    /** Returns an output address, if it's considered a valid Omni destination. */
+    bool getValidStmAddressAt(uint8_t output, std::string& addressOut);
     uint8_t getEcosystem() const { return ecosystem; }
     uint32_t getPreviousId() const { return prev_prop_id; }
     std::string getSPCategory() const { return category; }
@@ -256,6 +273,9 @@ public:
         distribution_property = 0;
         nonfungible_token_start = 0;
         nonfungible_token_end = 0;
+        numberOfSTMReceivers = 0;
+        outputValuesForSTM.clear();
+        validOutputAddressesForSTM.clear();
         memset(&nonfungible_data, 0, sizeof(nonfungible_data));
     }
 

@@ -17,6 +17,7 @@
 
 #include <univalue.h>
 
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -195,6 +196,15 @@ CPubKey ParsePubKeyOrAddress(const interfaces::Wallet* iWallet, const UniValue& 
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid redemption key or address");
     }
     return pubKey;
+}
+
+uint8_t ParseStmOutputIndex(const UniValue& value)
+{
+    int64_t nOut = value.get_int64();
+    if (nOut < 0 || nOut > std::numeric_limits<uint8_t>::max()) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Output index is out of range");
+    }
+    return static_cast<uint8_t>(nOut);
 }
 
 uint32_t ParseOutputIndex(const UniValue& value)

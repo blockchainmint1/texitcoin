@@ -932,6 +932,8 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 GetScriptPushes(wtx.vout[n].scriptPubKey, script_data);
                 address_data.push_back(EncodeDestination(dest));
                 value_data.push_back(wtx.vout[n].nValue);
+                // register the output as potential Send-To-Many destination (unconditional, cheap)
+                mp_tx.addValidStmAddress(n, EncodeDestination(dest));
                 if (msc_debug_parser_data) PrintToLog("saving address_data #%d: %s:%s\n", n, EncodeDestination(dest), ScriptToAsmStr(wtx.vout[n].scriptPubKey));
             }
         }

@@ -30,6 +30,13 @@ void RequireBalance(const std::string& address, uint32_t propertyId, int64_t amo
     }
 }
 
+void RequireBoundedStmReceiverNumber(size_t numberOfOutputs)
+{
+    if (numberOfOutputs > 255) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Number of outputs must not exceed 255");
+    }
+}
+
 void RequirePrimaryToken(uint32_t propertyId)
 {
     if (propertyId < 1 || 2 < propertyId) {

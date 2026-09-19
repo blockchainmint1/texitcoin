@@ -248,6 +248,101 @@ static UniValue omni_send(const JSONRPCRequest& request)
     }
 }
 
+static UniValue omni_sendtomany(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    std::unique_ptr<interfaces::Wallet> pwallet = interfaces::MakeWallet(wallet);
+
+    if (request.fHelp || request.params.size() != 3)
+        throw runtime_error(
+            RPCHelpMan{"omni_sendtomany",
+               "\nCreate and broadcast a send-to-many transaction, which sends tokens from one address to multiple receivers.\n",
+               {
+                   {"fromaddress", RPCArg::Type::STR, RPCArg::Optional::NO, "the address to send from\n"},
+                   {"propertyid", RPCArg::Type::NUM, RPCArg::Optional::NO, "the identifier of the tokens to send\n"},
+                   {"mapping", RPCArg::Type::ARR, RPCArg::Optional::NO, "an array with the receiving address and amount\n",
+                       {
+                           {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                               {
+                                   {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "the address of the receiver\n"},
+                                   {"amount", RPCArg::Type::STR, RPCArg::Optional::NO, "the amount to send\n"},
+                               },
+                           },
+                       },
+                   },
+               },
+               RPCResult{
+                    RPCResult::Type::STR_HEX, "", "The hex-encoded transaction hash."
+                },
+               RPCExamples{
+                   HelpExampleCli("omni_sendtomany", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\" 1 \"[{\\\"address\\\":\\\"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\\\",\\\"amount\\\":\\\"10.5\\\"}]\"")
+                   + HelpExampleRpc("omni_sendtomany", "\"3M9qvHKtgARhqcMtM5cRT9VaiDJ5PSfQGY\", 1, [{\"address\":\"37FaKponF7zqoMLUjEiko25pDiuVH5YLEa\",\"amount\":\"10.5\"}]")
+               }
+            }.ToString());
+
+    // obtain parameters & info
+    std::string fromAddress = ParseAddress(request.params[0]);
+    uint32_t propertyId = ParsePropertyId(request.params[1]);
+    RequireExistingProperty(propertyId);
+
+    bool isDivisible = isPropertyDivisible(propertyId);
+
+    std::vector<std::string> receiverAddresses;
+    std::vector<std::tuple<uint8_t, uint64_t>> outputValues;
+    int64_t amountToSend = 0;
+
+    UniValue receiverList = request.params[2].get_array();
+    for (unsigned int idx = 0; idx < receiverList.size(); idx++) {
+        const UniValue& input = receiverList[idx];
+        const UniValue& o = input.get_obj();
+
+        std::string address = ParseAddress(find_value(o, "address"));
+        int64_t amount = ParseAmount(find_value(o, "amount"), isDivisible);
+
+        receiverAddresses.push_back(address);
+        // placeholder index, corrected below once the payload size is known
+        outputValues.push_back(std::make_tuple(uint8_t(0), uint64_t(amount)));
+        amountToSend += amount;
+    }
+
+    // First pass: build a throwaway payload to learn how many outputs the
+    // payload itself occupies, because that determines the first receiver vout.
+    std::vector<unsigned char> testPayload = CreatePayload_SendToMany(propertyId, outputValues);
+
+    int payloadOutputCount = GetDryPayloadOutputCount(fromAddress, "", testPayload, pwallet.get());
+    if (payloadOutputCount < 0) {
+        throw JSONRPCError(payloadOutputCount, error_str(payloadOutputCount));
+    }
+
+    // perform checks
+    RequireBoundedStmReceiverNumber(payloadOutputCount + receiverAddresses.size());
+    RequireBalance(fromAddress, propertyId, amountToSend);
+
+    // Second pass: real output indices, starting right after the payload outputs
+    for (size_t i = 0; i < outputValues.size(); ++i) {
+        outputValues[i] = std::make_tuple(static_cast<uint8_t>(payloadOutputCount + i), std::get<1>(outputValues[i]));
+    }
+
+    std::vector<unsigned char> payload = CreatePayload_SendToMany(propertyId, outputValues);
+
+    // request the wallet build the transaction (and if needed commit it)
+    uint256 txid;
+    std::string rawHex;
+    int result = WalletTxBuilder(fromAddress, receiverAddresses, "", 0, payload, txid, rawHex, autoCommit, pwallet.get());
+
+    // check error and return the txid (or raw hex depending on autocommit)
+    if (result != 0) {
+        throw JSONRPCError(result, error_str(result));
+    } else {
+        if (!autoCommit) {
+            return rawHex;
+        } else {
+            PendingAdd(txid, fromAddress, MSC_TYPE_SEND_TO_MANY, propertyId, amountToSend);
+            return txid.GetHex();
+        }
+    }
+}
+
 static UniValue omni_sendall(const JSONRPCRequest& request)
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
@@ -1837,6 +1932,7 @@ static const CRPCCommand commands[] =
     { "omni layer (transaction creation)", "omni_sendclosecrowdsale",      &omni_sendclosecrowdsale,      {"fromaddress", "propertyid"} },
     { "omni layer (transaction creation)", "omni_sendchangeissuer",        &omni_sendchangeissuer,        {"fromaddress", "toaddress", "propertyid"} },
     { "omni layer (transaction creation)", "omni_sendall",                 &omni_sendall,                 {"fromaddress", "toaddress", "ecosystem", "redeemaddress", "referenceamount"} },
+    { "omni layer (transaction creation)", "omni_sendtomany",              &omni_sendtomany,              {"fromaddress", "propertyid", "mapping"} },
     { "omni layer (transaction creation)", "omni_sendnonfungible",         &omni_sendnonfungible,         {"fromaddress", "toaddress", "propertyid", "tokenstart", "tokenend", "redeemaddress", "referenceamount"} },
     { "omni layer (transaction creation)", "omni_setnonfungibledata",      &omni_setnonfungibledata,      {"propertyid", "tokenstart", "tokenend", "issuer", "data"} },
     { "omni layer (transaction creation)", "omni_sendenablefreezing",      &omni_sendenablefreezing,      {"fromaddress", "propertyid"} },

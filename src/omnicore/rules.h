@@ -19,6 +19,8 @@ const uint16_t FEATURE_FREEDEX = 15;
 const uint16_t FEATURE_NONFUNGIBLE = 16;
 //! Feature identifier to enable NFT issuer data update by issuers only
 const uint16_t FEATURE_NONFUNGIBLE_ISSUER = 18;
+//! Feature identifier to activate send-to-many transactions
+const uint16_t FEATURE_SEND_TO_MANY = 19;
 
 /** A structure to represent transaction restrictions.
  */
@@ -96,6 +98,8 @@ public:
     int MSC_ANYDATA_BLOCK;
     //! Block to enable non-fungible tokens
     int MSC_NONFUNGIBLE_BLOCK;
+    //! Block to enable send-to-many transactions
+    int MSC_SEND_TO_MANY_BLOCK;
 
     //! Block to activate the waiting period for enabling managed property address freezing
     int FREEZENOTICE_FEATURE_BLOCK;
