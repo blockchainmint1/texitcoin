@@ -229,7 +229,7 @@ int WalletTxBuilder(
     }
 
     CAmount nFeeRet = 0;
-    int nChangePosInOut = -1;
+    int nChangePosInOut = static_cast<int>(vecRecipients.size()); // pin change to end
     bilingual_str strFailReason;
     auto wtxNew = iWallet->createTransaction(vecRecipients, coinControl, true /* sign */, nChangePosInOut, nFeeRet, strFailReason, false, minFee);
 
