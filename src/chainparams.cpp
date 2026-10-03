@@ -80,7 +80,7 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60; // 40 blocks, ~2 hours
-        consensus.nLwmaHeight = 999999999; // mainnet: placeholder until the activation block is announced
+        consensus.nLwmaHeight = 363700; // mainnet: LWMA activation (announced)
         consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 275520;
         consensus.fPowAllowMinDifficultyBlocks = false;
