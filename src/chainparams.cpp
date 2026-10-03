@@ -170,6 +170,7 @@ public:
                 { 73000, uint256S("0x1d5edc7fb63949849033f51b474479b671d73e2c2a13b8e0b2560006b9dcc716")},
                 { 267500, uint256S("0x4ec4346c8403a4a36dcab87fcf90711ceacedd33b32c5321eb98985a6ba2b10d")},
                 { 275520, uint256S("0x329ddcf8de1cc797338508069d49b4aa6729ec34b46a5c17c1944c02ec341b72")}
+                { 362494, uint256S("c779dd9852275a99b13563146173088509a5f31b81282913ce1a8405e1c9318e")},
             }
         };
 
@@ -374,7 +375,6 @@ public:
         checkpointData = {
             {
                 {0, uint256S("eea6f90e705d884e4478afff290bf061fecd20a37bd567d89ffa4dde8d3a9b5b")},
-                {20, uint256S("06cfb784ddc3477b85f9f7cd7c3bfc247842ca42d6d600f86195783f77235ae2")},
             }
         };
 
