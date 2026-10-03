@@ -90,6 +90,10 @@ struct Params {
     int64_t nPowTargetTimespan;
     int64_t nPowTargetTimespanV2;
     int nDifficultyAdjustmentForkHeight;
+    /** LWMA per-block difficulty: first height that uses it, and its averaging window */
+    int nLwmaHeight;
+    int64_t nLwmaAveragingWindow;
+    bool IsLwmaActive(int nHeight) const { return nHeight >= nLwmaHeight; }
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     int64_t PowTargetTimespan(int nHeight) const {
         if (nDifficultyAdjustmentForkHeight > 0 && nHeight >= nDifficultyAdjustmentForkHeight)

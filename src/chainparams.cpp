@@ -80,6 +80,8 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60; // 40 blocks, ~2 hours
+        consensus.nLwmaHeight = 999999999; // mainnet: placeholder until the activation block is announced
+        consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 275520;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
@@ -202,6 +204,8 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60;
+        consensus.nLwmaHeight = 0; // testnet: active from genesis
+        consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 0; // always use V2 on testnet
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
@@ -307,6 +311,8 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60;
+        consensus.nLwmaHeight = 150; // regtest: after the usual 101-block warm-up
+        consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 0; // disabled on regtest
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
