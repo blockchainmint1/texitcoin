@@ -80,6 +80,8 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60; // 40 blocks, ~2 hours
+        consensus.nLwmaHeight = 999999999; // mainnet: placeholder until the activation block is announced
+        consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 275520;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
@@ -202,6 +204,8 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60;
+        consensus.nLwmaHeight = 0; // testnet: active from genesis
+        consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 0; // always use V2 on testnet
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
@@ -307,6 +311,8 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60;
+        consensus.nLwmaHeight = 150; // regtest: after the usual 101-block warm-up
+        consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 0; // disabled on regtest
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
@@ -368,6 +374,7 @@ public:
         checkpointData = {
             {
                 {0, uint256S("eea6f90e705d884e4478afff290bf061fecd20a37bd567d89ffa4dde8d3a9b5b")},
+                {20, uint256S("06cfb784ddc3477b85f9f7cd7c3bfc247842ca42d6d600f86195783f77235ae2")},
             }
         };
 

@@ -6,11 +6,49 @@
 #include "auxpow.h"
 #include <pow.h>
 
+#include <algorithm>
 #include <arith_uint256.h>
 #include <chain.h>
 #include <primitives/block.h>
 #include <uint256.h>
 #include <util/system.h>
+
+// LWMA-1 (zawy12): linearly weighted moving average of the last N blocks,
+// recalculated every block. Recent blocks count more, so difficulty follows
+// real hashrate within a few blocks instead of jumping every 40.
+static unsigned int Lwma1CalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params)
+{
+    const int64_t T = params.nPowTargetSpacing;
+    const int64_t N = params.nLwmaAveragingWindow;
+    const int64_t k = N * (N + 1) * T / 2;
+    const int height = pindexLast->nHeight;
+    const arith_uint256 powLimit = UintToArith256(params.powLimit);
+
+    if (height < N) return powLimit.GetCompact();
+
+    arith_uint256 sumTarget;
+    int64_t t = 0;
+    int64_t j = 0;
+    int64_t previousTimestamp = pindexLast->GetAncestor(height - N)->GetBlockTime();
+
+    for (int i = height - N + 1; i <= height; i++) {
+        const CBlockIndex* block = pindexLast->GetAncestor(i);
+        // Timestamps must move forward; a block claiming an earlier time counts as 1 second.
+        const int64_t thisTimestamp = (block->GetBlockTime() > previousTimestamp) ? block->GetBlockTime() : previousTimestamp + 1;
+        // Cap any single solve time at 6x target so one fake timestamp cannot crash difficulty.
+        const int64_t solvetime = std::min(6 * T, thisTimestamp - previousTimestamp);
+        previousTimestamp = thisTimestamp;
+        j++;
+        t += solvetime * j;
+        arith_uint256 target;
+        target.SetCompact(block->nBits);
+        sumTarget += target / (k * N);
+    }
+
+    arith_uint256 nextTarget = sumTarget * t;
+    if (nextTarget > powLimit) nextTarget = powLimit;
+    return nextTarget.GetCompact();
+}
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
@@ -18,6 +56,11 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
     int nHeight = pindexLast->nHeight + 1;
+
+    // From nLwmaHeight on, difficulty adjusts every block (LWMA-1).
+    // Before it, the original 40-block rule below is untouched.
+    if (params.IsLwmaActive(nHeight))
+        return Lwma1CalculateNextWorkRequired(pindexLast, params);
     int64_t nInterval = params.DifficultyAdjustmentIntervalForHeight(nHeight);
 
     // Only change once per difficulty adjustment interval

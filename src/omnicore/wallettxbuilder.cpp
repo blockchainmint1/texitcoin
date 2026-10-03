@@ -131,6 +131,135 @@ int WalletTxBuilder(
 
 }
 
+
+/** Dry-runs the payload encoding and returns the number of payload outputs. */
+int GetDryPayloadOutputCount(
+        const std::string& senderAddress,
+        const std::string& redemptionAddress,
+        const std::vector<unsigned char>& payload,
+        interfaces::Wallet* iWallet)
+{
+#ifdef ENABLE_WALLET
+    if (!iWallet) return MP_ERR_WALLET_ACCESS;
+
+    int omniTxClass = OMNI_CLASS_C;
+    if (!UseEncodingClassC(payload.size() + 1 /* OP_RETURN */ + 2 /* pushdata opcodes */)) omniTxClass = OMNI_CLASS_B;
+
+    std::vector<std::pair<CScript, int64_t> > vecSend;
+
+    switch (omniTxClass) {
+        case OMNI_CLASS_B: {
+            CPubKey redeemingPubKey;
+            const std::string& sAddress = redemptionAddress.empty() ? senderAddress : redemptionAddress;
+            if (!AddressToPubKey(iWallet, sAddress, redeemingPubKey)) {
+                return MP_REDEMP_BAD_VALIDATION;
+            }
+            if (!OmniCore_Encode_ClassB(senderAddress, redeemingPubKey, payload, vecSend)) { return MP_ENCODING_ERROR; }
+        break; }
+        case OMNI_CLASS_C:
+            if (!OmniCore_Encode_ClassC(payload, vecSend)) { return MP_ENCODING_ERROR; }
+        break;
+    }
+
+    return static_cast<int>(vecSend.size());
+#else
+    return MP_ERR_WALLET_ACCESS;
+#endif
+}
+
+/** Creates and sends a transaction with multiple receivers. */
+int WalletTxBuilder(
+        const std::string& senderAddress,
+        const std::vector<std::string>& receiverAddresses,
+        const std::string& redemptionAddress,
+        int64_t referenceAmount,
+        const std::vector<unsigned char>& payload,
+        uint256& retTxid,
+        std::string& retRawTx,
+        bool commit,
+        interfaces::Wallet* iWallet,
+        CAmount minFee)
+{
+#ifdef ENABLE_WALLET
+    if (!iWallet) return MP_ERR_WALLET_ACCESS;
+
+    // Determine the class to send the transaction via - default is Class C
+    int omniTxClass = OMNI_CLASS_C;
+    if (!UseEncodingClassC(payload.size() + 1 /* OP_RETURN */ + 2 /* pushdata opcodes */)) omniTxClass = OMNI_CLASS_B;
+
+    CCoinControl coinControl;
+    std::vector<std::pair<CScript, int64_t> > vecSend;
+
+    coinControl.destChange = DecodeDestination(senderAddress);
+
+    if (0 > mastercore::SelectCoins(*iWallet, senderAddress, coinControl, referenceAmount * (int64_t)receiverAddresses.size())) {
+        return MP_INPUTS_INVALID;
+    }
+
+    // Encode the data outputs first - they always come before the receivers
+    switch (omniTxClass) {
+        case OMNI_CLASS_B: {
+            CPubKey redeemingPubKey;
+            const std::string& sAddress = redemptionAddress.empty() ? senderAddress : redemptionAddress;
+            if (!AddressToPubKey(iWallet, sAddress, redeemingPubKey)) {
+                return MP_REDEMP_BAD_VALIDATION;
+            }
+            if (!OmniCore_Encode_ClassB(senderAddress, redeemingPubKey, payload, vecSend)) { return MP_ENCODING_ERROR; }
+        break; }
+        case OMNI_CLASS_C:
+            if (!OmniCore_Encode_ClassC(payload, vecSend)) { return MP_ENCODING_ERROR; }
+        break;
+    }
+
+    // Append one dust output per receiver, IN LIST ORDER. The payload's output
+    // indices point at these positions, so the ordering is consensus critical.
+    for (const std::string& receiverAddress : receiverAddresses) {
+        if (receiverAddress.empty()) return MP_ENCODING_ERROR;
+        CScript scriptPubKey = GetScriptForDestination(DecodeDestination(receiverAddress));
+        vecSend.push_back(std::make_pair(scriptPubKey, 0 < referenceAmount ? referenceAmount : OmniGetDustThreshold(scriptPubKey)));
+    }
+
+    if (!coinControl.HasSelected()) return MP_ERR_INPUTSELECT_FAIL;
+
+    std::vector<CRecipient> vecRecipients;
+    for (size_t i = 0; i < vecSend.size(); ++i) {
+        const std::pair<CScript, int64_t>& vec = vecSend[i];
+        CRecipient recipient = {vec.first, vec.second, false};
+        vecRecipients.push_back(recipient);
+    }
+
+    CAmount nFeeRet = 0;
+    int nChangePosInOut = static_cast<int>(vecRecipients.size()); // pin change to end
+    bilingual_str strFailReason;
+    auto wtxNew = iWallet->createTransaction(vecRecipients, coinControl, true /* sign */, nChangePosInOut, nFeeRet, strFailReason, false, minFee);
+
+    if (!wtxNew) {
+        PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason.original);
+        return MP_ERR_CREATE_TX;
+    }
+
+    // The change output must never be inserted before the receiver outputs,
+    // or every output index in the payload shifts.
+    if (nChangePosInOut >= 0 && static_cast<size_t>(nChangePosInOut) < vecSend.size()) {
+        PrintToLog("%s: ERROR: change output at position %d would shift receiver outputs\n", __func__, nChangePosInOut);
+        return MP_ERR_CREATE_TX;
+    }
+
+    if (!commit) {
+        retRawTx = EncodeHexTx(*wtxNew);
+        return 0;
+    } else {
+        PrintToLog("%s: %s; nFeeRet = %d\n", __func__, wtxNew->ToString(), nFeeRet);
+        std::vector<ReserveDestination*> reserved_keys;
+        iWallet->commitTransaction(wtxNew, {}, {}, reserved_keys);
+        retTxid = wtxNew->GetHash();
+        return 0;
+    }
+#else
+    return MP_ERR_WALLET_ACCESS;
+#endif
+}
+
 #ifdef ENABLE_WALLET
 /** Locks all available coins that are not in the set of destinations. */
 static void LockUnrelatedCoins(

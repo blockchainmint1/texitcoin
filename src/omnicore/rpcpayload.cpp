@@ -42,6 +42,62 @@ static UniValue omni_createpayload_simplesend(const JSONRPCRequest& request)
     return HexStr(payload.begin(), payload.end());
 }
 
+static UniValue omni_createpayload_sendtomany(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        throw runtime_error(
+            RPCHelpMan{"omni_createpayload_sendtomany",
+               "\nCreate the payload for a send-to-many transaction.\n",
+               {
+                   {"propertyid", RPCArg::Type::NUM, RPCArg::Optional::NO, "the identifier of the tokens to send\n"},
+                   {"mapping", RPCArg::Type::ARR, RPCArg::Optional::NO, "an array with the receiving outputs\n",
+                       {
+                           {"", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "",
+                               {
+                                   {"output", RPCArg::Type::NUM, RPCArg::Optional::NO, "the output number of the receiver\n"},
+                                   {"amount", RPCArg::Type::STR, RPCArg::Optional::NO, "the amount to send\n"},
+                               },
+                           },
+                       },
+                   },
+               },
+               RPCResult{
+                    RPCResult::Type::STR_HEX, "", "The hex-encoded payload"
+                },
+               RPCExamples{
+                   HelpExampleCli("omni_createpayload_sendtomany", "31 \"[{\\\"output\\\":2,\\\"amount\\\":\\\"10.5\\\"},{\\\"output\\\":3,\\\"amount\\\":\\\"0.5\\\"}]\"")
+                   + HelpExampleRpc("omni_createpayload_sendtomany", "31, [{\"output\":2,\"amount\":\"10.5\"},{\"output\":3,\"amount\":\"0.5\"}]")
+               }
+            }.ToString());
+
+    uint32_t propertyId = ParsePropertyId(request.params[0]);
+    RequireExistingProperty(propertyId);
+
+    bool isDivisible = isPropertyDivisible(propertyId);
+
+    std::vector<std::tuple<uint8_t, uint64_t>> outputValues;
+
+    UniValue receiverList = request.params[1].get_array();
+    for (unsigned int idx = 0; idx < receiverList.size(); idx++) {
+        const UniValue& input = receiverList[idx];
+        const UniValue& o = input.get_obj();
+
+        const UniValue& uvOutput = find_value(o, "output");
+        const UniValue& uvAmount = find_value(o, "amount");
+
+        uint8_t output = ParseStmOutputIndex(uvOutput);
+        uint64_t amount = static_cast<uint64_t>(ParseAmount(uvAmount, isDivisible));
+
+        outputValues.push_back(std::make_tuple(output, amount));
+    }
+
+    RequireBoundedStmReceiverNumber(outputValues.size());
+
+    std::vector<unsigned char> payload = CreatePayload_SendToMany(propertyId, outputValues);
+
+    return HexStr(payload.begin(), payload.end());
+}
+
 static UniValue omni_createpayload_sendall(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
@@ -623,6 +679,7 @@ static const CRPCCommand commands[] =
   //  -------------------------------- ----------------------------------------- ---------------------------------------- ----------
     { "omni layer (payload creation)", "omni_createpayload_simplesend",          &omni_createpayload_simplesend,          {"propertyid", "amount"} },
     { "omni layer (payload creation)", "omni_createpayload_sendall",             &omni_createpayload_sendall,             {"ecosystem"} },
+    { "omni layer (payload creation)", "omni_createpayload_sendtomany",          &omni_createpayload_sendtomany,          {"propertyid", "mapping"} },
     { "omni layer (payload creation)", "omni_createpayload_dexsell",             &omni_createpayload_dexsell,             {"propertyidforsale", "amountforsale", "amountdesired", "paymentwindow", "minacceptfee", "action"} },
     { "omni layer (payload creation)", "omni_createpayload_dexaccept",           &omni_createpayload_dexaccept,           {"propertyid", "amount"} },
     { "omni layer (payload creation)", "omni_createpayload_sto",                 &omni_createpayload_sto,                 {"propertyid", "amount", "distributionproperty"} },

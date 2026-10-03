@@ -19,6 +19,7 @@ void RequireMatchingDExOffer(const std::string& address, uint32_t propertyId);
 void RequireNoOtherDExOffer(const std::string& address);
 void RequireMatchingDExAccept(const std::string& sellerAddress, uint32_t propertyId, const std::string& buyerAddress);
 void RequireSaneReferenceAmount(int64_t amount);
+void RequireBoundedStmReceiverNumber(size_t numberOfOutputs);
 void RequireSaneDExPaymentWindow(const std::string& address, uint32_t propertyId);
 void RequireSaneDExFee(const std::string& address, uint32_t propertyId);
 void RequireSaneNonFungibleRange(int64_t tokenStart, int64_t tokenEnd);
