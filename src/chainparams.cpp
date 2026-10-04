@@ -80,7 +80,7 @@ public:
         consensus.nPowTargetTimespan =  12 * 60;
         consensus.nPowTargetSpacing = 3 * 60;
         consensus.nPowTargetTimespanV2 = 40 * 3 * 60; // 40 blocks, ~2 hours
-        consensus.nLwmaHeight = 363700; // mainnet: LWMA activation (announced)
+        consensus.nLwmaHeight = 364100; // mainnet: LWMA activation (announced)
         consensus.nLwmaAveragingWindow = 60;
         consensus.nDifficultyAdjustmentForkHeight = 275520;
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -169,8 +169,8 @@ public:
                 {  0, uint256S("0xb628195b74011675c216718bba39e04b631c1c82c060e8ee3e975ea87377b8ca")},
                 { 73000, uint256S("0x1d5edc7fb63949849033f51b474479b671d73e2c2a13b8e0b2560006b9dcc716")},
                 { 267500, uint256S("0x4ec4346c8403a4a36dcab87fcf90711ceacedd33b32c5321eb98985a6ba2b10d")},
-                { 275520, uint256S("0x329ddcf8de1cc797338508069d49b4aa6729ec34b46a5c17c1944c02ec341b72")}
-                { 362494, uint256S("c779dd9852275a99b13563146173088509a5f31b81282913ce1a8405e1c9318e")},
+                { 275520, uint256S("0x329ddcf8de1cc797338508069d49b4aa6729ec34b46a5c17c1944c02ec341b72")},
+                { 362494, uint256S("0xc779dd9852275a99b13563146173088509a5f31b81282913ce1a8405e1c9318e")},
             }
         };
 
