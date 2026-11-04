@@ -82,6 +82,8 @@ private:
     uint8_t numberOfSTMReceivers;
     std::vector<std::tuple<uint8_t, uint64_t>> outputValuesForSTM;
     std::map<uint8_t, std::string> validOutputAddressesForSTM;
+    /** False if any Send-To-Many amount is zero, above MAX_INT_8_BYTES, or the amounts overflow when summed. */
+    bool stmAmountsInRange;
 
     // Unique Send
     uint64_t nonfungible_token_start;
@@ -192,6 +194,14 @@ public:
     uint64_t getNewAmount() const { return nNewValue; }
     uint8_t getStmNumberOfReceivers() const { return numberOfSTMReceivers; }
     std::vector<std::tuple<uint8_t, uint64_t>> getStmOutputValues() const { return outputValuesForSTM; }
+    bool getStmAmountsInRange() const { return stmAmountsInRange; }
+
+    /**
+     * Validates Send-To-Many amounts: every amount must be in (0, MAX_INT_8_BYTES]
+     * and the running sum must never exceed MAX_INT_8_BYTES. On success totalOut
+     * holds the exact sum; on failure it is zero.
+     */
+    static bool CheckStmAmounts(const std::vector<std::tuple<uint8_t, uint64_t>>& values, uint64_t& totalOut);
 
     /** Registers an output as potential Send-To-Many destination. */
     void addValidStmAddress(size_t output, const std::string& address);
@@ -276,6 +286,7 @@ public:
         numberOfSTMReceivers = 0;
         outputValuesForSTM.clear();
         validOutputAddressesForSTM.clear();
+        stmAmountsInRange = true;
         memset(&nonfungible_data, 0, sizeof(nonfungible_data));
     }
 
