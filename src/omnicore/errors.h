@@ -154,6 +154,37 @@ inline std::string error_str(int ec) {
           ec_str = "Sender has no tokens to send";
           break;
 
+      case PKT_ERROR_SEND_MANY -22:
+          ec_str = "Transaction type or version not permitted";
+          break;
+      case PKT_ERROR_SEND_MANY -23:
+          ec_str = "Value out of range or zero";
+          break;
+      case PKT_ERROR_SEND_MANY -24:
+          ec_str = "Property does not exist";
+          break;
+      case PKT_ERROR_SEND_MANY -25:
+          ec_str = "Sender has insufficient balance";
+          break;
+      case PKT_ERROR_SEND_MANY -26:
+          ec_str = "Output is not a valid destination";
+          break;
+      case PKT_ERROR_SEND_MANY -27:
+          ec_str = "Property is non-fungible or receiver is empty";
+          break;
+      case PKT_ERROR_SEND_MANY -28:
+          ec_str = "Sum of outputs does not match total amount";
+          break;
+      case PKT_ERROR_SEND_MANY -29:
+          ec_str = "Number of valid receivers does not match";
+          break;
+      case PKT_ERROR_SEND_MANY -30:
+          ec_str = "Receiver amount is zero or above the maximum";
+          break;
+      case PKT_ERROR_SEND_MANY -31:
+          ec_str = "Sum of receiver amounts overflows";
+          break;
+
       case PKT_ERROR_TRADEOFFER -22:
           ec_str = "Transaction type or version not permitted";
           break;

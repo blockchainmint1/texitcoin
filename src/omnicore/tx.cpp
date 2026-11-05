@@ -310,11 +310,22 @@ bool CMPTransaction::interpret_SendToMany()
         memcpy(&valueN, &pkt[pos + 1], 8);
         SwapByteOrder64(valueN);
         outputValuesForSTM.push_back(std::make_tuple(outputN, valueN));
-        nValue += valueN;
         pos = pos + 9;
 
         if ((!rpcOnly && msc_debug_packets) || msc_debug_packets_readonly) {
             PrintToLog("\t         output %d: %s\n", outputN, FormatMP(property, valueN));
+        }
+    }
+    // The total is only meaningful when every amount is in range and the sum
+    // cannot wrap. An unchecked uint64 sum let two amounts that add up to
+    // 2^64 + x pass the range and balance checks as "x", while the tally
+    // updates then applied the full amounts (sign-flipped by the int64
+    // conversion), moving another address's balance to the sender.
+    stmAmountsInRange = CheckStmAmounts(outputValuesForSTM, nValue);
+    if (!stmAmountsInRange) {
+        nValue = 0;
+        if ((!rpcOnly && msc_debug_packets) || msc_debug_packets_readonly) {
+            PrintToLog("\t         amounts: INVALID (zero, above maximum, or overflowing sum)\n");
         }
     }
     nNewValue = nValue;
@@ -345,6 +356,26 @@ bool CMPTransaction::getValidStmAddressAt(uint8_t output, std::string& addressOu
     }
     addressOut.clear();
     return false;
+}
+
+/** Validates Send-To-Many amounts and computes their exact sum (see tx.h). */
+bool CMPTransaction::CheckStmAmounts(const std::vector<std::tuple<uint8_t, uint64_t>>& values, uint64_t& totalOut)
+{
+    uint64_t total = 0;
+    for (const std::tuple<uint8_t, uint64_t>& entry : values) {
+        const uint64_t amount = std::get<1>(entry);
+        if (amount == 0 || amount > MAX_INT_8_BYTES) {
+            totalOut = 0;
+            return false;
+        }
+        if (total > MAX_INT_8_BYTES - amount) { // total + amount would exceed the int64 maximum
+            totalOut = 0;
+            return false;
+        }
+        total += amount;
+    }
+    totalOut = total;
+    return true;
 }
 
 /** Tx 5 */
@@ -1258,6 +1289,11 @@ int CMPTransaction::logicMath_SendToMany()
         return (PKT_ERROR_SEND_MANY -27);
     }
 
+    if (!stmAmountsInRange) {
+        PrintToLog("%s(): rejected: a receiver amount is zero, above the maximum, or the amounts overflow when summed\n", __func__);
+        return (PKT_ERROR_SEND_MANY -30);
+    }
+
     if (nValue <= 0 || MAX_INT_8_BYTES < nValue) {
         PrintToLog("%s(): rejected: value out of range or zero: %d\n", __func__, nValue);
         return (PKT_ERROR_SEND_MANY -23);
@@ -1299,6 +1335,15 @@ int CMPTransaction::logicMath_SendToMany()
             return (PKT_ERROR_SEND_MANY -27);
         }
 
+        // Defense in depth: never trust the parsed total alone.
+        if (amount == 0 || MAX_INT_8_BYTES < amount) {
+            PrintToLog("%s(): rejected: amount for output %d is zero or above the maximum: %d\n", __func__, output, amount);
+            return (PKT_ERROR_SEND_MANY -30);
+        }
+        if (totalAmount > MAX_INT_8_BYTES - amount) {
+            PrintToLog("%s(): rejected: sum of amounts overflows at output %d\n", __func__, output);
+            return (PKT_ERROR_SEND_MANY -31);
+        }
         totalAmount += amount;
         validReceivers += 1;
     }
@@ -1322,8 +1367,11 @@ int CMPTransaction::logicMath_SendToMany()
 
         std::string receiverAddress;
         assert(getValidStmAddressAt(output, receiverAddress));
-        assert(update_tally_map(sender, property, -amount, BALANCE));
-        assert(update_tally_map(receiverAddress, property, amount, BALANCE));
+        // amount is in (0, MAX_INT_8_BYTES] after the first pass, so the
+        // conversion to the signed tally amount cannot change its sign.
+        const int64_t amountSigned = static_cast<int64_t>(amount);
+        assert(update_tally_map(sender, property, -amountSigned, BALANCE));
+        assert(update_tally_map(receiverAddress, property, amountSigned, BALANCE));
     }
 
     return 0;
